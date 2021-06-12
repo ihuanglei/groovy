@@ -18,13 +18,14 @@
  */
 package org.codehaus.groovy.jsr223
 
+import groovy.test.GroovyTestCase
+
 import javax.script.Invocable
 import javax.script.ScriptContext
-import javax.script.ScriptEngineManager
 import javax.script.ScriptEngine
 import javax.script.ScriptEngineFactory
+import javax.script.ScriptEngineManager
 import javax.script.ScriptException
-
 import javax.script.SimpleScriptContext
 
 /**
@@ -242,4 +243,11 @@ class JSR223Test extends GroovyTestCase {
         '''
     }
 
+    void testGroovy9430() {
+        ScriptEngineFactory factory = new GroovyScriptEngineFactory()
+        ScriptEngine engine = factory.getScriptEngine()
+        ScriptContext context = new SimpleScriptContext()
+        context.setAttribute(ScriptEngine.FILENAME, "testGroovy9430.groovy", ScriptContext.ENGINE_SCOPE)
+        assert 'testGroovy9430.groovy' == engine.generateScriptName(context)
+    }
 }

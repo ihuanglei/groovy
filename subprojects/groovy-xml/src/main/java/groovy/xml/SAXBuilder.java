@@ -19,13 +19,13 @@
 package groovy.xml;
 
 import groovy.lang.Tuple3;
+import groovy.namespace.QName;
 import groovy.util.BuilderSupport;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
-import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -40,44 +40,44 @@ public class SAXBuilder extends BuilderSupport {
         this.handler = handler;
     }
 
+    @Override
     protected void setParent(Object parent, Object child) {
     }
 
+    @Override
     protected Object createNode(Object name) {
         doStartElement(name, emptyAttributes);
         return name;
     }
 
+    @Override
     protected Object createNode(Object name, Object value) {
         doStartElement(name, emptyAttributes);
         doText(value);
         return name;
     }
 
-    /**
-     * @param value
-     */
     private void doText(Object value) {
         try {
             char[] text = value.toString().toCharArray();
             handler.characters(text, 0, text.length);
-        }
-        catch (SAXException e) {
+        } catch (SAXException e) {
             handleException(e);
         }
     }
 
+    @Override
     protected Object createNode(Object name, Map attributeMap, Object text) {
         AttributesImpl attributes = new AttributesImpl();
-        for (Iterator iter = attributeMap.entrySet().iterator(); iter.hasNext();) {
-            Map.Entry entry = (Map.Entry) iter.next();
+        for (Object o : attributeMap.entrySet()) {
+            Map.Entry entry = (Map.Entry) o;
             Object key = entry.getKey();
             Object value = entry.getValue();
 
             Tuple3<String, String, String> nameInfo = getNameInfo(key);
-            String uri = nameInfo.getFirst();
-            String localName = nameInfo.getSecond();
-            String qualifiedName = nameInfo.getThird();
+            String uri = nameInfo.getV1();
+            String localName = nameInfo.getV2();
+            String qualifiedName = nameInfo.getV3();
             String valueText = (value != null) ? value.toString() : "";
 
             attributes.addAttribute(uri, localName, qualifiedName, "CDATA", valueText);
@@ -91,28 +91,27 @@ public class SAXBuilder extends BuilderSupport {
 
     protected void doStartElement(Object name, Attributes attributes) {
         Tuple3<String, String, String> nameInfo = getNameInfo(name);
-        String uri = nameInfo.getFirst();
-        String localName = nameInfo.getSecond();
-        String qualifiedName = nameInfo.getThird();
+        String uri = nameInfo.getV1();
+        String localName = nameInfo.getV2();
+        String qualifiedName = nameInfo.getV3();
 
         try {
             handler.startElement(uri, localName, qualifiedName, attributes);
-        }
-        catch (SAXException e) {
+        } catch (SAXException e) {
             handleException(e);
         }
     }
 
+    @Override
     protected void nodeCompleted(Object parent, Object name) {
         Tuple3<String, String, String> nameInfo = getNameInfo(name);
-        String uri = nameInfo.getFirst();
-        String localName = nameInfo.getSecond();
-        String qualifiedName = nameInfo.getThird();
+        String uri = nameInfo.getV1();
+        String localName = nameInfo.getV2();
+        String qualifiedName = nameInfo.getV3();
 
         try {
             handler.endElement(uri, localName, qualifiedName);
-        }
-        catch (SAXException e) {
+        } catch (SAXException e) {
             handleException(e);
         }
     }
@@ -124,6 +123,7 @@ public class SAXBuilder extends BuilderSupport {
     /* (non-Javadoc)
      * @see groovy.util.BuilderSupport#createNode(java.lang.Object, java.util.Map, java.lang.Object)
      */
+    @Override
     protected Object createNode(Object name, Map attributes) {
         return createNode(name, attributes, null);
     }

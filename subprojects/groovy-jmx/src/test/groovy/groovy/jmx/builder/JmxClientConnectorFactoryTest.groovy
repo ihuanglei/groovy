@@ -18,16 +18,21 @@
  */
 package groovy.jmx.builder
 
+import groovy.test.GroovyTestCase
+
 import javax.management.remote.rmi.RMIConnector
 import javax.management.remote.rmi.RMIConnectorServer
 
 class JmxClientConnectorFactoryTest extends GroovyTestCase {
     def builder
-    int defaultPort = 10995
+    int defaultPort = 10990
     def rmi
 
     void setUp() {
         super.setUp()
+        def hostAddress = getHostAddress()
+        println "hostAddress: ${hostAddress}"
+        System.setProperty("java.rmi.server.hostname", hostAddress)
         builder = new JmxBuilder()
         rmi = JmxConnectorHelper.createRmiRegistry(defaultPort)
     }
@@ -69,4 +74,27 @@ class JmxClientConnectorFactoryTest extends GroovyTestCase {
             client.connect()
         }
     }
+
+    static String getHostAddress() {
+        try {
+            Enumeration<NetworkInterface> allNetInterfaces = NetworkInterface.getNetworkInterfaces()
+            while (allNetInterfaces.hasMoreElements()) {
+                NetworkInterface netInterface = (NetworkInterface) allNetInterfaces.nextElement()
+                Enumeration<InetAddress> addresses = netInterface.getInetAddresses()
+                while (addresses.hasMoreElements()) {
+                    InetAddress ip = (InetAddress) addresses.nextElement()
+                    if (ip != null
+                            && ip instanceof Inet4Address
+                            && !ip.isLoopbackAddress()
+                            && ip.getHostAddress().indexOf(":") == -1) {
+                        return ip.getHostAddress()
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace()
+        }
+        return null
+    }
+
 }

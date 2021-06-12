@@ -68,7 +68,7 @@ import static java.time.temporal.ChronoUnit.YEARS;
  * Date/Time API (java.time) classes inside the Groovy environment.
  * These extensions require JDK 8 or above.
  */
-public class DateTimeExtensions {
+public final class DateTimeExtensions {
 
     // Static methods only
     private DateTimeExtensions() {
@@ -576,6 +576,18 @@ public class DateTimeExtensions {
      */
     public static LocalDate minus(final LocalDate self, long days) {
         return self.minusDays(days);
+    }
+
+    /**
+     * Calculates the number of days between two dates
+     *
+     * @param self a LocalDate
+     * @param other the other LocalDate
+     * @return the number of days
+     * @since 3.0.0
+     */
+    public static long minus(final LocalDate self, LocalDate other) {
+        return ChronoUnit.DAYS.between(other, self);
     }
 
     /**

@@ -203,13 +203,6 @@
 
 ------------------------------------------------------------------------
 
-ANTLR 2 License
-
-Antlr2 is released in the public domain.
-See licenses/antlr2-license.txt for details.
-
-------------------------------------------------------------------------
-
 ANTLR 4 License
 
 Antlr4 is released under a BSD 3-clause license.
@@ -227,18 +220,6 @@ Hamcrest License (needed when using optional JUnit dependency)
 
 This product bundles the Hamcrest jar, which is available under a
 BSD license.  For details, see licenses/hamcrest-license.txt.
-
-------------------------------------------------------------------------
-
-JAXB License (for optional groovy-jaxb extensions)
-
-This product bundles several JAXB related jars in binary form.
-
-The "javax.activation" jar is available under the CDDL 1.0 license:
-licenses/activation-license.txt
-
-The jaxb-api, jaxb-core and jaxb-impl jars use the CDDL 1.1 license:
-licenses/jaxb-license.txt
 
 ------------------------------------------------------------------------
 

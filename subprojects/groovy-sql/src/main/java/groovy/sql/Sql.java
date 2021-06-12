@@ -28,6 +28,7 @@ import groovy.transform.stc.SimpleType;
 import org.codehaus.groovy.runtime.InvokerHelper;
 
 import javax.sql.DataSource;
+
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -110,7 +111,7 @@ import static org.apache.groovy.sql.extensions.SqlExtensions.toRowResult;
  * Now try a query using <code>eachRow</code>:
  * <pre>
  * println 'Some GR8 projects:'
- * sql.eachRow('select * from PROJECT') { row ->
+ * sql.eachRow('select * from PROJECT') { row {@code ->}
  *     println "${row.name.padRight(10)} ($row.url)"
  * }
  * </pre>
@@ -133,9 +134,9 @@ import static org.apache.groovy.sql.extensions.SqlExtensions.toRowResult;
  * [ID:20, NAME:Grails, URL:http://grails.org]
  * [ID:40, NAME:Gradle, URL:http://gradle.org]
  * </pre>
- * Also, <code>eachRow</code> and <code>rows</code> support paging.  Here's an example: 
+ * Also, <code>eachRow</code> and <code>rows</code> support paging.  Here's an example:
  * <pre>
- * sql.eachRow('select * from PROJECT', 2, 2) { row ->
+ * sql.eachRow('select * from PROJECT', 2, 2) { row {@code ->}
  *     println "${row.name.padRight(10)} ($row.url)"
  * }
  * </pre>
@@ -144,7 +145,7 @@ import static org.apache.groovy.sql.extensions.SqlExtensions.toRowResult;
  * Grails     (http://grails.org)
  * Griffon    (http://griffon.codehaus.org)
  * </pre>
- * 
+ *
  * Finally, we should clean up:
  * <pre>
  * sql.close()
@@ -268,7 +269,7 @@ public class Sql implements AutoCloseable {
 
     private final Map<String, Statement> statementCache = new HashMap<String, Statement>();
     private final Map<String, String> namedParamSqlCache = new HashMap<String, String>();
-    private final Map<String, List<Tuple>> namedParamIndexPropCache = new HashMap<String, List<Tuple>>();
+    private final Map<String, List<Tuple<?>>> namedParamIndexPropCache = new HashMap<>();
     private List<String> keyColumnNames;
 
     /**
@@ -294,7 +295,7 @@ public class Sql implements AutoCloseable {
      * @see #newInstance(String)
      * @throws SQLException if a database access error occurs
      */
-    public static void withInstance(String url, Closure c) throws SQLException {
+    public static void withInstance(String url, @ClosureParams(value=SimpleType.class, options="groovy.sql.Sql") Closure c) throws SQLException {
         try (Sql sql = newInstance(url)) {
             c.call(sql);
         }
@@ -330,7 +331,8 @@ public class Sql implements AutoCloseable {
      * @see #newInstance(String, java.util.Properties)
      * @throws SQLException if a database access error occurs
      */
-    public static void withInstance(String url, Properties properties, Closure c) throws SQLException {
+    public static void withInstance(String url, Properties properties, @ClosureParams(value=SimpleType.class, options="groovy.sql.Sql") Closure c)
+            throws SQLException {
         try (Sql sql = newInstance(url, properties)) {
             c.call(sql);
         }
@@ -371,7 +373,7 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database access error occurs
      * @throws ClassNotFoundException if the driver class cannot be found or loaded
      */
-    public static void withInstance(String url, Properties properties, String driverClassName, Closure c)
+    public static void withInstance(String url, Properties properties, String driverClassName, @ClosureParams(value=SimpleType.class, options="groovy.sql.Sql") Closure c)
             throws SQLException, ClassNotFoundException {
         try (Sql sql = newInstance(url, properties, driverClassName)) {
             c.call(sql);
@@ -408,7 +410,8 @@ public class Sql implements AutoCloseable {
      * @see #newInstance(String, String, String)
      * @throws SQLException if a database access error occurs
      */
-    public static void withInstance(String url, String user, String password, Closure c) throws SQLException {
+    public static void withInstance(String url, String user, String password, @ClosureParams(value=SimpleType.class, options="groovy.sql.Sql") Closure c)
+            throws SQLException {
         try (Sql sql = newInstance(url, user, password)) {
             c.call(sql);
         }
@@ -449,7 +452,7 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database access error occurs
      * @throws ClassNotFoundException if the driver class cannot be found or loaded
      */
-    public static void withInstance(String url, String user, String password, String driverClassName, Closure c)
+    public static void withInstance(String url, String user, String password, String driverClassName, @ClosureParams(value=SimpleType.class, options="groovy.sql.Sql") Closure c)
             throws SQLException, ClassNotFoundException {
         try (Sql sql = newInstance(url, user, password, driverClassName)) {
             c.call(sql);
@@ -484,7 +487,7 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database access error occurs
      * @throws ClassNotFoundException if the driver class cannot be found or loaded
      */
-    public static void withInstance(String url, String driverClassName, Closure c)
+    public static void withInstance(String url, String driverClassName, @ClosureParams(value=SimpleType.class, options="groovy.sql.Sql") Closure c)
             throws SQLException, ClassNotFoundException {
         try (Sql sql = newInstance(url, driverClassName)) {
             c.call(sql);
@@ -523,7 +526,7 @@ public class Sql implements AutoCloseable {
      *     resultSetConcurrency: CONCUR_READ_ONLY
      * )
      * </pre>
-     * 
+     *
      * @param args a Map contain further arguments
      * @return a new Sql instance with a connection
      * @throws SQLException           if a database access error occurs
@@ -542,10 +545,8 @@ public class Sql implements AutoCloseable {
             @NamedParam(value = "resultSetConcurrency", type = Integer.class)
             @NamedParam(value = "resultSetHoldability", type = Integer.class)
             @NamedParam(value = "resultSetType", type = Integer.class)
-            // TODO below will be deleted once we fix type checker to understand
-            // readonly Map otherwise seen as Map<String, Serializable>
-            @NamedParam(value = "unused", type = Object.class)
-            Map<String, Object> args) throws SQLException, ClassNotFoundException {
+            Map<String, Object> args
+    ) throws SQLException, ClassNotFoundException {
         if (!args.containsKey("url"))
             throw new IllegalArgumentException("Argument 'url' is required");
 
@@ -556,9 +557,8 @@ public class Sql implements AutoCloseable {
             throw new IllegalArgumentException("Only one of 'driverClassName' and 'driver' should be provided");
 
         // Make a copy so destructive operations will not affect the caller
-        Map<String, Object> sqlArgs = new HashMap<String, Object>(args);
+        Map<String, Object> sqlArgs = new HashMap<>(args);
 
-        sqlArgs.remove("unused"); // TODO remove
         Object driverClassName = sqlArgs.remove("driverClassName");
         if (driverClassName == null) driverClassName = sqlArgs.remove("driver");
         if (driverClassName != null) loadDriver(driverClassName.toString());
@@ -628,11 +628,10 @@ public class Sql implements AutoCloseable {
             @NamedParam(value = "resultSetConcurrency", type = Integer.class)
             @NamedParam(value = "resultSetHoldability", type = Integer.class)
             @NamedParam(value = "resultSetType", type = Integer.class)
-            // TODO below will be deleted once we fix type checker to understand
-            // readonly Map otherwise seen as Map<String, Serializable>
-            @NamedParam(value = "unused", type = Object.class)
             Map<String, Object> args,
-            Closure c) throws SQLException, ClassNotFoundException {
+            @ClosureParams(value=SimpleType.class, options="groovy.sql.Sql")
+            Closure c
+    ) throws SQLException, ClassNotFoundException {
         try (Sql sql = newInstance(args)) {
             c.call(sql);
         }
@@ -743,36 +742,66 @@ public class Sql implements AutoCloseable {
         }
     }
 
-    public static final OutParameter ARRAY         = new OutParameter(){ public int getType() { return Types.ARRAY; }};
-    public static final OutParameter BIGINT        = new OutParameter(){ public int getType() { return Types.BIGINT; }};
-    public static final OutParameter BINARY        = new OutParameter(){ public int getType() { return Types.BINARY; }};
-    public static final OutParameter BIT           = new OutParameter(){ public int getType() { return Types.BIT; }};
-    public static final OutParameter BLOB          = new OutParameter(){ public int getType() { return Types.BLOB; }};
-    public static final OutParameter BOOLEAN       = new OutParameter(){ public int getType() { return Types.BOOLEAN; }};
-    public static final OutParameter CHAR          = new OutParameter(){ public int getType() { return Types.CHAR; }};
-    public static final OutParameter CLOB          = new OutParameter(){ public int getType() { return Types.CLOB; }};
-    public static final OutParameter DATALINK      = new OutParameter(){ public int getType() { return Types.DATALINK; }};
-    public static final OutParameter DATE          = new OutParameter(){ public int getType() { return Types.DATE; }};
-    public static final OutParameter DECIMAL       = new OutParameter(){ public int getType() { return Types.DECIMAL; }};
-    public static final OutParameter DISTINCT      = new OutParameter(){ public int getType() { return Types.DISTINCT; }};
-    public static final OutParameter DOUBLE        = new OutParameter(){ public int getType() { return Types.DOUBLE; }};
-    public static final OutParameter FLOAT         = new OutParameter(){ public int getType() { return Types.FLOAT; }};
-    public static final OutParameter INTEGER       = new OutParameter(){ public int getType() { return Types.INTEGER; }};
-    public static final OutParameter JAVA_OBJECT   = new OutParameter(){ public int getType() { return Types.JAVA_OBJECT; }};
-    public static final OutParameter LONGVARBINARY = new OutParameter(){ public int getType() { return Types.LONGVARBINARY; }};
-    public static final OutParameter LONGVARCHAR   = new OutParameter(){ public int getType() { return Types.LONGVARCHAR; }};
-    public static final OutParameter NULL          = new OutParameter(){ public int getType() { return Types.NULL; }};
-    public static final OutParameter NUMERIC       = new OutParameter(){ public int getType() { return Types.NUMERIC; }};
-    public static final OutParameter OTHER         = new OutParameter(){ public int getType() { return Types.OTHER; }};
-    public static final OutParameter REAL          = new OutParameter(){ public int getType() { return Types.REAL; }};
-    public static final OutParameter REF           = new OutParameter(){ public int getType() { return Types.REF; }};
-    public static final OutParameter SMALLINT      = new OutParameter(){ public int getType() { return Types.SMALLINT; }};
-    public static final OutParameter STRUCT        = new OutParameter(){ public int getType() { return Types.STRUCT; }};
-    public static final OutParameter TIME          = new OutParameter(){ public int getType() { return Types.TIME; }};
-    public static final OutParameter TIMESTAMP     = new OutParameter(){ public int getType() { return Types.TIMESTAMP; }};
-    public static final OutParameter TINYINT       = new OutParameter(){ public int getType() { return Types.TINYINT; }};
-    public static final OutParameter VARBINARY     = new OutParameter(){ public int getType() { return Types.VARBINARY; }};
-    public static final OutParameter VARCHAR       = new OutParameter(){ public int getType() { return Types.VARCHAR; }};
+    public static final OutParameter ARRAY         = new OutParameter(){ @Override
+    public int getType() { return Types.ARRAY; }};
+    public static final OutParameter BIGINT        = new OutParameter(){ @Override
+    public int getType() { return Types.BIGINT; }};
+    public static final OutParameter BINARY        = new OutParameter(){ @Override
+    public int getType() { return Types.BINARY; }};
+    public static final OutParameter BIT           = new OutParameter(){ @Override
+    public int getType() { return Types.BIT; }};
+    public static final OutParameter BLOB          = new OutParameter(){ @Override
+    public int getType() { return Types.BLOB; }};
+    public static final OutParameter BOOLEAN       = new OutParameter(){ @Override
+    public int getType() { return Types.BOOLEAN; }};
+    public static final OutParameter CHAR          = new OutParameter(){ @Override
+    public int getType() { return Types.CHAR; }};
+    public static final OutParameter CLOB          = new OutParameter(){ @Override
+    public int getType() { return Types.CLOB; }};
+    public static final OutParameter DATALINK      = new OutParameter(){ @Override
+    public int getType() { return Types.DATALINK; }};
+    public static final OutParameter DATE          = new OutParameter(){ @Override
+    public int getType() { return Types.DATE; }};
+    public static final OutParameter DECIMAL       = new OutParameter(){ @Override
+    public int getType() { return Types.DECIMAL; }};
+    public static final OutParameter DISTINCT      = new OutParameter(){ @Override
+    public int getType() { return Types.DISTINCT; }};
+    public static final OutParameter DOUBLE        = new OutParameter(){ @Override
+    public int getType() { return Types.DOUBLE; }};
+    public static final OutParameter FLOAT         = new OutParameter(){ @Override
+    public int getType() { return Types.FLOAT; }};
+    public static final OutParameter INTEGER       = new OutParameter(){ @Override
+    public int getType() { return Types.INTEGER; }};
+    public static final OutParameter JAVA_OBJECT   = new OutParameter(){ @Override
+    public int getType() { return Types.JAVA_OBJECT; }};
+    public static final OutParameter LONGVARBINARY = new OutParameter(){ @Override
+    public int getType() { return Types.LONGVARBINARY; }};
+    public static final OutParameter LONGVARCHAR   = new OutParameter(){ @Override
+    public int getType() { return Types.LONGVARCHAR; }};
+    public static final OutParameter NULL          = new OutParameter(){ @Override
+    public int getType() { return Types.NULL; }};
+    public static final OutParameter NUMERIC       = new OutParameter(){ @Override
+    public int getType() { return Types.NUMERIC; }};
+    public static final OutParameter OTHER         = new OutParameter(){ @Override
+    public int getType() { return Types.OTHER; }};
+    public static final OutParameter REAL          = new OutParameter(){ @Override
+    public int getType() { return Types.REAL; }};
+    public static final OutParameter REF           = new OutParameter(){ @Override
+    public int getType() { return Types.REF; }};
+    public static final OutParameter SMALLINT      = new OutParameter(){ @Override
+    public int getType() { return Types.SMALLINT; }};
+    public static final OutParameter STRUCT        = new OutParameter(){ @Override
+    public int getType() { return Types.STRUCT; }};
+    public static final OutParameter TIME          = new OutParameter(){ @Override
+    public int getType() { return Types.TIME; }};
+    public static final OutParameter TIMESTAMP     = new OutParameter(){ @Override
+    public int getType() { return Types.TIMESTAMP; }};
+    public static final OutParameter TINYINT       = new OutParameter(){ @Override
+    public int getType() { return Types.TINYINT; }};
+    public static final OutParameter VARBINARY     = new OutParameter(){ @Override
+    public int getType() { return Types.VARBINARY; }};
+    public static final OutParameter VARCHAR       = new OutParameter(){ @Override
+    public int getType() { return Types.VARCHAR; }};
 
     public static InParameter ARRAY(Object value) { return in(Types.ARRAY, value); }
     public static InParameter BIGINT(Object value) { return in(Types.BIGINT, value); }
@@ -818,10 +847,12 @@ public class Sql implements AutoCloseable {
      */
     public static InParameter in(final int type, final Object value) {
         return new InParameter() {
+            @Override
             public int getType() {
                 return type;
             }
 
+            @Override
             public Object getValue() {
                 return value;
             }
@@ -836,6 +867,7 @@ public class Sql implements AutoCloseable {
      */
     public static OutParameter out(final int type) {
         return new OutParameter() {
+            @Override
             public int getType() {
                 return type;
             }
@@ -850,10 +882,12 @@ public class Sql implements AutoCloseable {
      */
     public static InOutParameter inout(final InParameter in) {
         return new InOutParameter() {
+            @Override
             public int getType() {
                 return in.getType();
             }
 
+            @Override
             public Object getValue() {
                 return in.getValue();
             }
@@ -868,6 +902,7 @@ public class Sql implements AutoCloseable {
      */
     public static ResultSetOutParameter resultSet(final int type) {
         return new ResultSetOutParameter() {
+            @Override
             public int getType() {
                 return type;
             }
@@ -883,7 +918,7 @@ public class Sql implements AutoCloseable {
      * def fieldName = 'firstname'
      * def fieldOp = Sql.expand('like')
      * def fieldVal = '%a%'
-     * sql.query "select * from PERSON where ${Sql.expand(fieldName)} $fieldOp ${fieldVal}", { ResultSet rs ->
+     * sql.query "select * from PERSON where ${Sql.expand(fieldName)} $fieldOp ${fieldVal}", { ResultSet rs {@code ->}
      *     while (rs.next()) println rs.getString('firstname')
      * }
      * // query will be 'select * from PERSON where firstname like ?'
@@ -896,6 +931,7 @@ public class Sql implements AutoCloseable {
      */
     public static ExpandedVariable expand(final Object object) {
         return new ExpandedVariable() {
+            @Override
             public Object getObject() {
                 return object;
             }
@@ -954,11 +990,11 @@ public class Sql implements AutoCloseable {
      * <p>
      * Example usages:
      * <pre>
-     * sql.query("select * from PERSON where firstname like 'S%'") { ResultSet rs ->
+     * sql.query("select * from PERSON where firstname like 'S%'") { ResultSet rs {@code ->}
      *     while (rs.next()) println rs.getString('firstname') + ' ' + rs.getString(3)
      * }
      *
-     * sql.query("call get_people_places()") { ResultSet rs ->
+     * sql.query("call get_people_places()") { ResultSet rs {@code ->}
      *     while (rs.next()) println rs.toRowResult().firstname
      * }
      * </pre>
@@ -994,7 +1030,7 @@ public class Sql implements AutoCloseable {
      * <p>
      * Example usage:
      * <pre>
-     * sql.query('select * from PERSON where lastname like ?', ['%a%']) { ResultSet rs ->
+     * sql.query('select * from PERSON where lastname like ?', ['%a%']) { ResultSet rs {@code ->}
      *     while (rs.next()) println rs.getString('lastname')
      * }
      * </pre>
@@ -1069,7 +1105,7 @@ public class Sql implements AutoCloseable {
      * Example usage:
      * <pre>
      * def location = 25
-     * sql.query "select * from PERSON where location_id < $location", { ResultSet rs ->
+     * sql.query "select * from PERSON where location_id {@code <} $location", { ResultSet rs {@code ->}
      *     while (rs.next()) println rs.getString('firstname')
      * }
      * </pre>
@@ -1095,7 +1131,7 @@ public class Sql implements AutoCloseable {
      * <p>
      * Example usages:
      * <pre>
-     * sql.eachRow("select * from PERSON where firstname like 'S%'") { row ->
+     * sql.eachRow("select * from PERSON where firstname like 'S%'") { row {@code ->}
      *    println "$row.firstname ${row[2]}}"
      * }
      *
@@ -1152,13 +1188,13 @@ public class Sql implements AutoCloseable {
      * <p>
      * Example usage:
      * <pre>
-     * def printColNames = { meta ->
+     * def printColNames = { meta {@code ->}
      *     (1..meta.columnCount).each {
      *         print meta.getColumnLabel(it).padRight(20)
      *     }
      *     println()
      * }
-     * def printRow = { row ->
+     * def printRow = { row {@code ->}
      *     row.toRowResult().values().each{ print it.toString().padRight(20) }
      *     println()
      * }
@@ -1344,13 +1380,13 @@ public class Sql implements AutoCloseable {
      * <p>
      * Example usage:
      * <pre>
-     * def printColNames = { meta ->
+     * def printColNames = { meta {@code ->}
      *     (1..meta.columnCount).each {
      *         print meta.getColumnLabel(it).padRight(20)
      *     }
      *     println()
      * }
-     * def printRow = { row ->
+     * def printRow = { row {@code ->}
      *     row.toRowResult().values().each{ print it.toString().padRight(20) }
      *     println()
      * }
@@ -1416,7 +1452,7 @@ public class Sql implements AutoCloseable {
      * <p>
      * Example usage:
      * <pre>
-     * sql.eachRow("select * from PERSON where lastname like ?", ['%a%']) { row ->
+     * sql.eachRow("select * from PERSON where lastname like ?", ['%a%']) { row {@code ->}
      *     println "${row[1]} $row.lastname"
      * }
      * </pre>
@@ -1537,17 +1573,17 @@ public class Sql implements AutoCloseable {
      * Example usage:
      * <pre>
      * def location = 25
-     * def printColNames = { meta ->
+     * def printColNames = { meta {@code ->}
      *     (1..meta.columnCount).each {
      *         print meta.getColumnLabel(it).padRight(20)
      *     }
      *     println()
      * }
-     * def printRow = { row ->
+     * def printRow = { row {@code ->}
      *     row.toRowResult().values().each{ print it.toString().padRight(20) }
      *     println()
      * }
-     * sql.eachRow("select * from PERSON where location_id < $location", printColNames, printRow)
+     * sql.eachRow("select * from PERSON where location_id {@code <} $location", printColNames, printRow)
      * </pre>
      * <p>
      * Resource handling is performed automatically where appropriate.
@@ -1636,7 +1672,7 @@ public class Sql implements AutoCloseable {
      * Example usage:
      * <pre>
      * def location = 25
-     * sql.eachRow("select * from PERSON where location_id < $location") { row ->
+     * sql.eachRow("select * from PERSON where location_id {@code <} $location") { row {@code ->}
      *     println row.firstname
      * }
      * </pre>
@@ -1696,7 +1732,6 @@ public class Sql implements AutoCloseable {
         return rows(sql, offset, maxRows, null);
     }
 
-
     /**
      * Performs the given SQL query and return the rows of the result set.
      * In addition, the <code>metaClosure</code> will be called once passing in the
@@ -1704,7 +1739,7 @@ public class Sql implements AutoCloseable {
      * <p>
      * Example usage:
      * <pre>
-     * def printNumCols = { meta -> println "Found $meta.columnCount columns" }
+     * def printNumCols = { meta {@code ->} println "Found $meta.columnCount columns" }
      * def ans = sql.rows("select * from PERSON", printNumCols)
      * println "Found ${ans.size()} rows"
      * </pre>
@@ -1906,7 +1941,7 @@ public class Sql implements AutoCloseable {
      * <p>
      * Example usage:
      * <pre>
-     * def printNumCols = { meta -> println "Found $meta.columnCount columns" }
+     * def printNumCols = { meta {@code ->} println "Found $meta.columnCount columns" }
      * def ans = sql.rows("select * from PERSON where lastname like ?", ['%a%'], printNumCols)
      * println "Found ${ans.size()} rows"
      * </pre>
@@ -1914,7 +1949,7 @@ public class Sql implements AutoCloseable {
      * This method supports named and named ordinal parameters by supplying such
      * parameters in the <code>params</code> list. Here is an example:
      * <pre>
-     * def printNumCols = { meta -> println "Found $meta.columnCount columns" }
+     * def printNumCols = { meta {@code ->} println "Found $meta.columnCount columns" }
      *
      * def mapParam = [foo: 'Smith']
      * def domainParam = new MyDomainClass(bar: 'John')
@@ -2083,7 +2118,7 @@ public class Sql implements AutoCloseable {
      * Example usage:
      * <pre>
      * def location = 25
-     * def ans = sql.rows("select * from PERSON where location_id < $location")
+     * def ans = sql.rows("select * from PERSON where location_id {@code <} $location")
      * println "Found ${ans.size()} rows"
      * </pre>
      * <p>
@@ -2107,8 +2142,8 @@ public class Sql implements AutoCloseable {
      * Example usage:
      * <pre>
      * def location = 25
-     * def printNumCols = { meta -> println "Found $meta.columnCount columns" }
-     * def ans = sql.rows("select * from PERSON where location_id < $location", printNumCols)
+     * def printNumCols = { meta {@code ->} println "Found $meta.columnCount columns" }
+     * def ans = sql.rows("select * from PERSON where location_id {@code <} $location", printNumCols)
      * println "Found ${ans.size()} rows"
      * </pre>
      * <p>
@@ -2195,7 +2230,7 @@ public class Sql implements AutoCloseable {
      * Example usage:
      * <pre>
      * def location = 25
-     * def ans = sql.firstRow("select * from PERSON where location_id < $location")
+     * def ans = sql.firstRow("select * from PERSON where location_id {@code <} $location")
      * println ans.firstname
      * </pre>
      * <p>
@@ -2344,12 +2379,12 @@ public class Sql implements AutoCloseable {
      * Example usages:
      * <pre>
      * boolean first = true
-     * sql.execute "{call FindAllByFirst('J')}", { isResultSet, result ->
+     * sql.execute "{call FindAllByFirst('J')}", { isResultSet, result {@code ->}
      *   if (first) {
      *     first = false
-     *     assert !isResultSet && result == 0
+     *     assert !isResultSet {@code &&} result == 0
      *   } else {
-     *     assert isResultSet && result == [[ID:1, FIRSTNAME:'James', LASTNAME:'Strachan'], [ID:4, FIRSTNAME:'Jean', LASTNAME:'Gabin']]
+     *     assert isResultSet {@code &&} result == [[ID:1, FIRSTNAME:'James', LASTNAME:'Strachan'], [ID:4, FIRSTNAME:'Jean', LASTNAME:'Gabin']]
      *   }
      * }
      * </pre>
@@ -2363,7 +2398,7 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database access error occurs
      * @since 2.3.2
      */
-    public void execute(String sql, Closure processResults) throws SQLException {
+    public void execute(String sql, @ClosureParams(value=SimpleType.class, options={"boolean,java.util.List<groovy.sql.GroovyRowResult>", "boolean,int"}) Closure processResults) throws SQLException {
         Connection connection = createConnection();
         Statement statement = null;
         try {
@@ -2450,7 +2485,7 @@ public class Sql implements AutoCloseable {
      * @see #execute(String, Closure)
      * @since 2.3.2
      */
-    public void execute(String sql, List<Object> params, Closure processResults) throws SQLException {
+    public void execute(String sql, List<Object> params, @ClosureParams(value=SimpleType.class, options={"boolean,java.util.List<groovy.sql.GroovyRowResult>", "boolean,int"}) Closure processResults) throws SQLException {
         Connection connection = createConnection();
         PreparedStatement statement = null;
         try {
@@ -2507,7 +2542,7 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database access error occurs
      * @since 2.3.2
      */
-    public void execute(Map params, String sql, Closure processResults) throws SQLException {
+    public void execute(Map params, String sql, @ClosureParams(value=SimpleType.class, options={"boolean,java.util.List<groovy.sql.GroovyRowResult>", "boolean,int"}) Closure processResults) throws SQLException {
         execute(sql, singletonList(params), processResults);
     }
 
@@ -2547,7 +2582,7 @@ public class Sql implements AutoCloseable {
      * @see #execute(String, List, Closure)
      * @since 2.3.2
      */
-    public void execute(String sql, Object[] params, Closure processResults) throws SQLException {
+    public void execute(String sql, Object[] params, @ClosureParams(value=SimpleType.class, options={"boolean,java.util.List<groovy.sql.GroovyRowResult>", "boolean,int"}) Closure processResults) throws SQLException {
         execute(sql, Arrays.asList(params), processResults);
     }
 
@@ -2593,7 +2628,7 @@ public class Sql implements AutoCloseable {
      * @see #execute(String, List, Closure)
      * @since 2.3.2
      */
-    public void execute(GString gstring, Closure processResults) throws SQLException {
+    public void execute(GString gstring, @ClosureParams(value=SimpleType.class, options={"boolean,java.util.List<groovy.sql.GroovyRowResult>", "boolean,int"}) Closure processResults) throws SQLException {
         List<Object> params = getParameters(gstring);
         String sql = asSql(gstring, params);
         execute(sql, params, processResults);
@@ -3006,7 +3041,7 @@ public class Sql implements AutoCloseable {
      * @return the number of rows updated or 0 for SQL statements that return nothing
      * @throws SQLException if a database access error occurs
      */
-    public int call(String sql) throws Exception {
+    public int call(String sql) throws SQLException {
         return call(sql, EMPTY_LIST);
     }
 
@@ -3031,7 +3066,7 @@ public class Sql implements AutoCloseable {
      * @see #expand(Object)
      * @see #call(String)
      */
-    public int call(GString gstring) throws Exception {
+    public int call(GString gstring) throws SQLException {
         List<Object> params = getParameters(gstring);
         String sql = asSql(gstring, params);
         return call(sql, params);
@@ -3056,7 +3091,7 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database access error occurs
      * @see #call(String)
      */
-    public int call(String sql, List<Object> params) throws Exception {
+    public int call(String sql, List<Object> params) throws SQLException {
         Connection connection = createConnection();
         CallableStatement statement = null;
         try {
@@ -3081,7 +3116,7 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database access error occurs
      * @see #call(String)
      */
-    public int call(String sql, Object[] params) throws Exception {
+    public int call(String sql, Object[] params) throws SQLException {
         return call(sql, Arrays.asList(params));
     }
 
@@ -3111,7 +3146,7 @@ public class Sql implements AutoCloseable {
      * </pre>
      * we can now call the stored procedure as follows:
      * <pre>
-     * sql.call '{call Hemisphere(?, ?, ?)}', ['Guillaume', 'Laforge', Sql.VARCHAR], { dwells ->
+     * sql.call '{call Hemisphere(?, ?, ?)}', ['Guillaume', 'Laforge', Sql.VARCHAR], { dwells {@code ->}
      *     println dwells
      * }
      * </pre>
@@ -3153,7 +3188,7 @@ public class Sql implements AutoCloseable {
      * </pre>
      * and here is how you access the stored function for all databases:
      * <pre>
-     * sql.call("{? = call FullName(?)}", [Sql.VARCHAR, 'Sam']) { name ->
+     * sql.call("{? = call FullName(?)}", [Sql.VARCHAR, 'Sam']) { name {@code ->}
      *     assert name == 'Sam Pullara'
      * }
      * </pre>
@@ -3165,7 +3200,7 @@ public class Sql implements AutoCloseable {
      * @param closure called for each row with a GroovyResultSet
      * @throws SQLException if a database access error occurs
      */
-    public void call(String sql, List<Object> params, Closure closure) throws Exception {
+    public void call(String sql, List<Object> params, @ClosureParams(value=SimpleType.class, options="java.lang.Object[]") Closure closure) throws SQLException {
         callWithRows(sql, params, NO_RESULT_SETS, closure);
     }
 
@@ -3179,7 +3214,7 @@ public class Sql implements AutoCloseable {
      * <pre>
      * def first = 'Scott'
      * def last = 'Davis'
-     * sql.call "{call Hemisphere($first, $last, ${Sql.VARCHAR})}", { dwells ->
+     * sql.call "{call Hemisphere($first, $last, ${Sql.VARCHAR})}", { dwells {@code ->}
      *     println dwells
      * }
      * </pre>
@@ -3189,7 +3224,7 @@ public class Sql implements AutoCloseable {
      * Once created, it can be called like this:
      * <pre>
      * def first = 'Sam'
-     * sql.call("{$Sql.VARCHAR = call FullName($first)}") { name ->
+     * sql.call("{$Sql.VARCHAR = call FullName($first)}") { name {@code ->}
      *     assert name == 'Sam Pullara'
      * }
      * </pre>
@@ -3202,7 +3237,7 @@ public class Sql implements AutoCloseable {
      * @see #call(String, List, Closure)
      * @see #expand(Object)
      */
-    public void call(GString gstring, Closure closure) throws Exception {
+    public void call(GString gstring, @ClosureParams(value=SimpleType.class, options="java.lang.Object[]") Closure closure) throws SQLException {
         List<Object> params = getParameters(gstring);
         String sql = asSql(gstring, params);
         call(sql, params, closure);
@@ -3220,7 +3255,7 @@ public class Sql implements AutoCloseable {
      * <pre>
      * def first = 'Jeff'
      * def last = 'Sheets'
-     * def rows = sql.callWithRows "{call Hemisphere2($first, $last, ${Sql.VARCHAR})}", { dwells ->
+     * def rows = sql.callWithRows "{call Hemisphere2($first, $last, ${Sql.VARCHAR})}", { dwells {@code ->}
      *     println dwells
      * }
      * </pre>
@@ -3233,7 +3268,7 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database access error occurs
      * @see #callWithRows(String, List, Closure)
      */
-    public List<GroovyRowResult> callWithRows(GString gstring, Closure closure) throws SQLException {
+    public List<GroovyRowResult> callWithRows(GString gstring, @ClosureParams(value=SimpleType.class, options="java.lang.Object[]") Closure closure) throws SQLException {
         List<Object> params = getParameters(gstring);
         String sql = asSql(gstring, params);
         return callWithRows(sql, params, closure);
@@ -3249,7 +3284,7 @@ public class Sql implements AutoCloseable {
      * <p>
      * Once created, the stored procedure can be called like this:
      * <pre>
-     * def rows = sql.callWithRows '{call Hemisphere2(?, ?, ?)}', ['Guillaume', 'Laforge', Sql.VARCHAR], { dwells ->
+     * def rows = sql.callWithRows '{call Hemisphere2(?, ?, ?)}', ['Guillaume', 'Laforge', Sql.VARCHAR], { dwells {@code ->}
      *     println dwells
      * }
      * </pre>
@@ -3263,7 +3298,7 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database access error occurs
      * @see #callWithRows(GString, Closure)
      */
-    public List<GroovyRowResult> callWithRows(String sql, List<Object> params, Closure closure) throws SQLException {
+    public List<GroovyRowResult> callWithRows(String sql, List<Object> params, @ClosureParams(value=SimpleType.class, options="java.lang.Object[]") Closure closure) throws SQLException {
         return callWithRows(sql, params, FIRST_RESULT_SET, closure).get(0);
     }
 
@@ -3279,7 +3314,7 @@ public class Sql implements AutoCloseable {
      * <pre>
      * def first = 'Jeff'
      * def last = 'Sheets'
-     * def rowsList = sql.callWithAllRows "{call Hemisphere2($first, $last, ${Sql.VARCHAR})}", { dwells ->
+     * def rowsList = sql.callWithAllRows "{call Hemisphere2($first, $last, ${Sql.VARCHAR})}", { dwells {@code ->}
      *     println dwells
      * }
      * </pre>
@@ -3292,7 +3327,7 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database access error occurs
      * @see #callWithAllRows(String, List, Closure)
      */
-    public List<List<GroovyRowResult>> callWithAllRows(GString gstring, Closure closure) throws SQLException {
+    public List<List<GroovyRowResult>> callWithAllRows(GString gstring, @ClosureParams(value=SimpleType.class, options="java.lang.Object[]") Closure closure) throws SQLException {
         List<Object> params = getParameters(gstring);
         String sql = asSql(gstring, params);
         return callWithAllRows(sql, params, closure);
@@ -3308,7 +3343,7 @@ public class Sql implements AutoCloseable {
      * <p>
      * Once created, the stored procedure can be called like this:
      * <pre>
-     * def rowsList = sql.callWithAllRows '{call Hemisphere2(?, ?, ?)}', ['Guillaume', 'Laforge', Sql.VARCHAR], { dwells ->
+     * def rowsList = sql.callWithAllRows '{call Hemisphere2(?, ?, ?)}', ['Guillaume', 'Laforge', Sql.VARCHAR], { dwells {@code ->}
      *     println dwells
      * }
      * </pre>
@@ -3322,89 +3357,8 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database access error occurs
      * @see #callWithRows(GString, Closure)
      */
-    public List<List<GroovyRowResult>> callWithAllRows(String sql, List<Object> params, Closure closure) throws SQLException {
+    public List<List<GroovyRowResult>> callWithAllRows(String sql, List<Object> params, @ClosureParams(value=SimpleType.class, options="java.lang.Object[]") Closure closure) throws SQLException {
         return callWithRows(sql, params, ALL_RESULT_SETS, closure);
-    }
-
-    /**
-     * Base internal method for call(), callWithRows(), and callWithAllRows() style of methods.
-     * <p>
-     * Performs a stored procedure call with the given parameters,
-     * calling the closure once with all result objects,
-     * and also returning the rows of the ResultSet(s) (if processResultSets is set to
-     * Sql.FIRST_RESULT_SET, Sql.ALL_RESULT_SETS)
-     * <p>
-     * Main purpose of processResultSets param is to retain original call() method
-     * performance when this is set to Sql.NO_RESULT_SETS
-     * <p>
-     * Resource handling is performed automatically where appropriate.
-     *
-     * @param sql     the sql statement
-     * @param params  a list of parameters
-     * @param processResultsSets the result sets to process, either Sql.NO_RESULT_SETS, Sql.FIRST_RESULT_SET, or Sql.ALL_RESULT_SETS
-     * @param closure called once with all out parameter results
-     * @return a list of GroovyRowResult objects
-     * @throws SQLException if a database access error occurs
-     * @see #callWithRows(String, List, Closure)
-     */
-    protected List<List<GroovyRowResult>> callWithRows(String sql, List<Object> params, int processResultsSets, Closure closure) throws SQLException {
-        Connection connection = createConnection();
-        CallableStatement statement = null;
-        List<GroovyResultSet> resultSetResources = new ArrayList<GroovyResultSet>();
-        try {
-            statement = getCallableStatement(connection, sql, params);
-            boolean hasResultSet = statement.execute();
-            List<Object> results = new ArrayList<Object>();
-            int indx = 0;
-            int inouts = 0;
-            for (Object value : params) {
-                if (value instanceof OutParameter) {
-                    if (value instanceof ResultSetOutParameter) {
-                        GroovyResultSet resultSet = CallResultSet.getImpl(statement, indx);
-                        resultSetResources.add(resultSet);
-                        results.add(resultSet);
-                    } else {
-                        Object o = statement.getObject(indx + 1);
-                        if (o instanceof ResultSet) {
-                            GroovyResultSet resultSet = new GroovyResultSetProxy((ResultSet) o).getImpl();
-                            results.add(resultSet);
-                            resultSetResources.add(resultSet);
-                        } else {
-                            results.add(o);
-                        }
-                    }
-                    inouts++;
-                }
-                indx++;
-            }
-            closure.call(results.toArray(new Object[inouts]));
-            List<List<GroovyRowResult>> resultSets = new ArrayList<List<GroovyRowResult>>();
-            if (processResultsSets == NO_RESULT_SETS) {
-                resultSets.add(new ArrayList<GroovyRowResult>());
-                return resultSets;
-            }
-            //Check both hasResultSet and getMoreResults() because of differences in vendor behavior
-            if (!hasResultSet) {
-                hasResultSet = statement.getMoreResults();
-            }
-            while (hasResultSet && (processResultsSets != NO_RESULT_SETS)) {
-                resultSets.add(asList(sql, statement.getResultSet()));
-                if (processResultsSets == FIRST_RESULT_SET) {
-                    break;
-                } else {
-                    hasResultSet = statement.getMoreResults();
-                }
-            }
-            return resultSets;
-        } catch (SQLException e) {
-            LOG.warning("Failed to execute: " + sql + " because: " + e.getMessage());
-            throw e;
-        } finally {
-            for (GroovyResultSet rs : resultSetResources) {
-                closeResources(null, null, rs);
-            }
-            closeResources(connection, statement);
-        }
     }
 
     /**
@@ -3501,7 +3455,7 @@ public class Sql implements AutoCloseable {
      * configured using this closure. The statement being configured is passed into the closure
      * as its single argument, e.g.:
      * <pre>
-     * sql.withStatement{ stmt -> stmt.maxRows = 10 }
+     * sql.withStatement{ stmt {@code ->} stmt.maxRows = 10 }
      * def firstTenRows = sql.rows("select * from table")
      * </pre>
      *
@@ -3540,7 +3494,7 @@ public class Sql implements AutoCloseable {
      * @param closure the given closure
      * @throws SQLException if a database error occurs
      */
-    public void cacheConnection(Closure closure) throws SQLException {
+    public void cacheConnection(@ClosureParams(value=SimpleType.class, options="java.sql.Connection") Closure closure) throws SQLException {
         boolean savedCacheConnection = cacheConnection;
         cacheConnection = true;
         Connection connection = null;
@@ -3565,7 +3519,7 @@ public class Sql implements AutoCloseable {
      * @param closure the given closure
      * @throws SQLException if a database error occurs
      */
-    public void withTransaction(Closure closure) throws SQLException {
+    public void withTransaction(@ClosureParams(value=SimpleType.class, options="java.sql.Connection") Closure closure) throws SQLException {
         boolean savedCacheConnection = cacheConnection;
         cacheConnection = true;
         Connection connection = null;
@@ -3624,7 +3578,7 @@ public class Sql implements AutoCloseable {
      * <p>
      * Use it like this:
      * <pre>
-     * def updateCounts = sql.withBatch { stmt ->
+     * def updateCounts = sql.withBatch { stmt {@code ->}
      *     stmt.addBatch("insert into TABLENAME ...")
      *     stmt.addBatch("insert into TABLENAME ...")
      *     stmt.addBatch("insert into TABLENAME ...")
@@ -3650,7 +3604,7 @@ public class Sql implements AutoCloseable {
      *                      database fails to execute properly or attempts to return a result set.
      * @see #withBatch(int, Closure)
      */
-    public int[] withBatch(Closure closure) throws SQLException {
+    public int[] withBatch(@ClosureParams(value=SimpleType.class, options="groovy.sql.BatchingStatementWrapper") Closure closure) throws SQLException {
         return withBatch(0, closure);
     }
 
@@ -3668,7 +3622,7 @@ public class Sql implements AutoCloseable {
      * <p>
      * Use it like this for batchSize of 20:
      * <pre>
-     * def updateCounts = sql.withBatch(20) { stmt ->
+     * def updateCounts = sql.withBatch(20) { stmt {@code ->}
      *     stmt.addBatch("insert into TABLENAME ...")
      *     stmt.addBatch("insert into TABLENAME ...")
      *     stmt.addBatch("insert into TABLENAME ...")
@@ -3699,7 +3653,7 @@ public class Sql implements AutoCloseable {
      * @see BatchingStatementWrapper
      * @see Statement
      */
-    public int[] withBatch(int batchSize, Closure closure) throws SQLException {
+    public int[] withBatch(int batchSize, @ClosureParams(value=SimpleType.class, options="groovy.sql.BatchingStatementWrapper") Closure closure) throws SQLException {
         Connection connection = createConnection();
         BatchingStatementWrapper statement = null;
         boolean savedWithinBatch = withinBatch;
@@ -3732,7 +3686,7 @@ public class Sql implements AutoCloseable {
      * <p>
      * An example:
      * <pre>
-     * def updateCounts = sql.withBatch('insert into TABLENAME(a, b, c) values (?, ?, ?)') { ps ->
+     * def updateCounts = sql.withBatch('insert into TABLENAME(a, b, c) values (?, ?, ?)') { ps {@code ->}
      *     ps.addBatch([10, 12, 5])
      *     ps.addBatch([7, 3, 98])
      *     ps.addBatch(22, 67, 11)
@@ -3763,7 +3717,7 @@ public class Sql implements AutoCloseable {
      * @see BatchingPreparedStatementWrapper
      * @see PreparedStatement
      */
-    public int[] withBatch(String sql, Closure closure) throws SQLException {
+    public int[] withBatch(String sql, @ClosureParams(value=SimpleType.class, options="groovy.sql.BatchingPreparedStatementWrapper") Closure closure) throws SQLException {
         return withBatch(0, sql, closure);
     }
 
@@ -3782,7 +3736,7 @@ public class Sql implements AutoCloseable {
      * <p>
      * Below is an example using a batchSize of 20:
      * <pre>
-     * def updateCounts = sql.withBatch(20, 'insert into TABLENAME(a, b, c) values (?, ?, ?)') { ps ->
+     * def updateCounts = sql.withBatch(20, 'insert into TABLENAME(a, b, c) values (?, ?, ?)') { ps {@code ->}
      *     ps.addBatch(10, 12, 5)      // varargs style
      *     ps.addBatch([7, 3, 98])     // list
      *     ps.addBatch([22, 67, 11])
@@ -3791,7 +3745,7 @@ public class Sql implements AutoCloseable {
      * </pre>
      * Named parameters (into maps or domain objects) are also supported:
      * <pre>
-     * def updateCounts = sql.withBatch(20, 'insert into TABLENAME(a, b, c) values (:foo, :bar, :baz)') { ps ->
+     * def updateCounts = sql.withBatch(20, 'insert into TABLENAME(a, b, c) values (:foo, :bar, :baz)') { ps {@code ->}
      *     ps.addBatch([foo:10, bar:12, baz:5])  // map
      *     ps.addBatch(foo:7, bar:3, baz:98)     // Groovy named args allow outer brackets to be dropped
      *     ...
@@ -3799,7 +3753,7 @@ public class Sql implements AutoCloseable {
      * </pre>
      * Named ordinal parameters (into maps or domain objects) are also supported:
      * <pre>
-     * def updateCounts = sql.withBatch(20, 'insert into TABLENAME(a, b, c) values (?1.foo, ?2.bar, ?2.baz)') { ps ->
+     * def updateCounts = sql.withBatch(20, 'insert into TABLENAME(a, b, c) values (?1.foo, ?2.bar, ?2.baz)') { ps {@code ->}
      *     ps.addBatch([[foo:22], [bar:67, baz:11]])  // list of maps or domain objects
      *     ps.addBatch([foo:10], [bar:12, baz:5])     // varargs allows outer brackets to be dropped
      *     ps.addBatch([foo:7], [bar:3, baz:98])
@@ -3807,7 +3761,7 @@ public class Sql implements AutoCloseable {
      * }
      * // swap to batch size of 5 and illustrate simple and domain object cases ...
      * class Person { String first, last }
-     * def updateCounts2 = sql.withBatch(5, 'insert into PERSON(id, first, last) values (?1, ?2.first, ?2.last)') { ps ->
+     * def updateCounts2 = sql.withBatch(5, 'insert into PERSON(id, first, last) values (?1, ?2.first, ?2.last)') { ps {@code ->}
      *     ps.addBatch(1, new Person(first:'Peter', last:'Pan'))
      *     ps.addBatch(2, new Person(first:'Snow', last:'White'))
      *     ...
@@ -3837,7 +3791,7 @@ public class Sql implements AutoCloseable {
      * @see BatchingPreparedStatementWrapper
      * @see PreparedStatement
      */
-    public int[] withBatch(int batchSize, String sql, Closure closure) throws SQLException {
+    public int[] withBatch(int batchSize, String sql, @ClosureParams(value=SimpleType.class, options="groovy.sql.BatchingPreparedStatementWrapper") Closure closure) throws SQLException {
         Connection connection = createConnection();
         List<Tuple> indexPropList = null;
         SqlWithParams preCheck = buildSqlWithIndexedProps(sql);
@@ -3878,7 +3832,7 @@ public class Sql implements AutoCloseable {
      * @throws SQLException if a database error occurs
      * @see #setCacheStatements(boolean)
      */
-    public void cacheStatements(Closure closure) throws SQLException {
+    public void cacheStatements(@ClosureParams(value=SimpleType.class, options="java.sql.Connection") Closure closure) throws SQLException {
         boolean savedCacheStatements = cacheStatements;
         cacheStatements = true;
         Connection connection = null;
@@ -3894,6 +3848,87 @@ public class Sql implements AutoCloseable {
 
     // protected implementation methods - extension points for subclasses
     //-------------------------------------------------------------------------
+
+    /**
+     * Base internal method for call(), callWithRows(), and callWithAllRows() style of methods.
+     * <p>
+     * Performs a stored procedure call with the given parameters,
+     * calling the closure once with all result objects,
+     * and also returning the rows of the ResultSet(s) (if processResultSets is set to
+     * Sql.FIRST_RESULT_SET, Sql.ALL_RESULT_SETS)
+     * <p>
+     * Main purpose of processResultSets param is to retain original call() method
+     * performance when this is set to Sql.NO_RESULT_SETS
+     * <p>
+     * Resource handling is performed automatically where appropriate.
+     *
+     * @param sql     the sql statement
+     * @param params  a list of parameters
+     * @param processResultsSets the result sets to process, either Sql.NO_RESULT_SETS, Sql.FIRST_RESULT_SET, or Sql.ALL_RESULT_SETS
+     * @param closure called once with all out parameter results
+     * @return a list of GroovyRowResult objects
+     * @throws SQLException if a database access error occurs
+     * @see #callWithRows(String, List, Closure)
+     */
+    protected List<List<GroovyRowResult>> callWithRows(String sql, List<Object> params, int processResultsSets, @ClosureParams(value=SimpleType.class, options="java.lang.Object[]") Closure closure) throws SQLException {
+        Connection connection = createConnection();
+        CallableStatement statement = null;
+        List<GroovyResultSet> resultSetResources = new ArrayList<GroovyResultSet>();
+        try {
+            statement = getCallableStatement(connection, sql, params);
+            boolean hasResultSet = statement.execute();
+            List<Object> results = new ArrayList<Object>();
+            int indx = 0;
+            int inouts = 0;
+            for (Object value : params) {
+                if (value instanceof OutParameter) {
+                    if (value instanceof ResultSetOutParameter) {
+                        GroovyResultSet resultSet = CallResultSet.getImpl(statement, indx);
+                        resultSetResources.add(resultSet);
+                        results.add(resultSet);
+                    } else {
+                        Object o = statement.getObject(indx + 1);
+                        if (o instanceof ResultSet) {
+                            GroovyResultSet resultSet = new GroovyResultSetProxy((ResultSet) o).getImpl();
+                            results.add(resultSet);
+                            resultSetResources.add(resultSet);
+                        } else {
+                            results.add(o);
+                        }
+                    }
+                    inouts++;
+                }
+                indx++;
+            }
+            closure.call(results.toArray(new Object[inouts]));
+            List<List<GroovyRowResult>> resultSets = new ArrayList<List<GroovyRowResult>>();
+            if (processResultsSets == NO_RESULT_SETS) {
+                resultSets.add(new ArrayList<GroovyRowResult>());
+                return resultSets;
+            }
+            //Check both hasResultSet and getMoreResults() because of differences in vendor behavior
+            if (!hasResultSet) {
+                hasResultSet = statement.getMoreResults();
+            }
+            while (hasResultSet && (processResultsSets != NO_RESULT_SETS)) {
+                resultSets.add(asList(sql, statement.getResultSet()));
+                if (processResultsSets == FIRST_RESULT_SET) {
+                    break;
+                } else {
+                    hasResultSet = statement.getMoreResults();
+                }
+            }
+            return resultSets;
+        } catch (SQLException e) {
+            LOG.warning("Failed to execute: " + sql + " because: " + e.getMessage());
+            throw e;
+        } finally {
+            for (GroovyResultSet rs : resultSetResources) {
+                closeResources(null, null, rs);
+            }
+            closeResources(connection, statement);
+        }
+    }
 
     /**
      * Useful helper method which handles resource management when executing a
@@ -4235,6 +4270,7 @@ public class Sql implements AutoCloseable {
             Connection con;
             try {
                 con = AccessController.doPrivileged(new PrivilegedExceptionAction<Connection>() {
+                    @Override
                     public Connection run() throws SQLException {
                         return dataSource.getConnection();
                     }
@@ -4478,7 +4514,7 @@ public class Sql implements AutoCloseable {
         }
 
         String newSql;
-        List<Tuple> propList;
+        List<Tuple<?>> propList;
         if (cacheNamedQueries && namedParamSqlCache.containsKey(sql)) {
             newSql = namedParamSqlCache.get(sql);
             propList = namedParamIndexPropCache.get(sql);

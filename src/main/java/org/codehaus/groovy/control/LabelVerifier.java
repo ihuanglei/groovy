@@ -27,7 +27,6 @@ import org.codehaus.groovy.ast.stmt.Statement;
 import org.codehaus.groovy.ast.stmt.SwitchStatement;
 import org.codehaus.groovy.ast.stmt.WhileStatement;
 
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -47,6 +46,7 @@ public class LabelVerifier extends ClassCodeVisitorSupport {
         source = src;
     }
 
+    @Override
     protected SourceUnit getSourceUnit() {
         return source;
     }
@@ -59,26 +59,24 @@ public class LabelVerifier extends ClassCodeVisitorSupport {
         inSwitch = false;
     }
 
+    @Override
     protected void visitClassCodeContainer(Statement code) {
         init();
         super.visitClassCodeContainer(code);
         assertNoLabelsMissed();
     }
 
+    @Override
     public void visitStatement(Statement statement) {
         List<String> labels = statement.getStatementLabels();
 
         if (labels != null) {
             for (String label : labels) {
                 if (breakLabels != null) {
-                    for (Iterator<BreakStatement> iter = breakLabels.iterator(); iter.hasNext(); ) {
-                        if (iter.next().getLabel().equals(label)) iter.remove();
-                    }
+                    breakLabels.removeIf(breakStatement -> breakStatement.getLabel().equals(label));
                 }
                 if (continueLabels != null) {
-                    for (Iterator<ContinueStatement> iter = continueLabels.iterator(); iter.hasNext(); ) {
-                        if (iter.next().getLabel().equals(label)) iter.remove();
-                    }
+                    continueLabels.removeIf(continueStatement -> continueStatement.getLabel().equals(label));
                 }
                 if (visitedLabels != null) {
                     visitedLabels.add(label);
@@ -89,6 +87,7 @@ public class LabelVerifier extends ClassCodeVisitorSupport {
         super.visitStatement(statement);
     }
 
+    @Override
     public void visitForLoop(ForStatement forLoop) {
         boolean oldInLoop = inLoop;
         inLoop = true;
@@ -96,6 +95,7 @@ public class LabelVerifier extends ClassCodeVisitorSupport {
         inLoop = oldInLoop;
     }
 
+    @Override
     public void visitDoWhileLoop(DoWhileStatement loop) {
         boolean oldInLoop = inLoop;
         inLoop = true;
@@ -103,6 +103,7 @@ public class LabelVerifier extends ClassCodeVisitorSupport {
         inLoop = oldInLoop;
     }
 
+    @Override
     public void visitWhileLoop(WhileStatement loop) {
         boolean oldInLoop = inLoop;
         inLoop = true;
@@ -110,6 +111,7 @@ public class LabelVerifier extends ClassCodeVisitorSupport {
         inLoop = oldInLoop;
     }
 
+    @Override
     public void visitBreakStatement(BreakStatement statement) {
         String label = statement.getLabel();
         boolean hasNamedLabel = label != null;
@@ -132,6 +134,7 @@ public class LabelVerifier extends ClassCodeVisitorSupport {
         super.visitBreakStatement(statement);
     }
 
+    @Override
     public void visitContinueStatement(ContinueStatement statement) {
         String label = statement.getLabel();
         boolean hasNamedLabel = label != null;
@@ -162,6 +165,7 @@ public class LabelVerifier extends ClassCodeVisitorSupport {
         }
     }
 
+    @Override
     public void visitSwitch(SwitchStatement statement) {
         boolean oldInSwitch = inSwitch;
         inSwitch = true;

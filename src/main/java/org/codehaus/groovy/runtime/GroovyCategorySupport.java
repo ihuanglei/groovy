@@ -19,6 +19,7 @@
 package org.codehaus.groovy.runtime;
 
 import groovy.lang.Closure;
+import org.apache.groovy.util.BeanUtils;
 import org.codehaus.groovy.reflection.CachedClass;
 import org.codehaus.groovy.reflection.CachedMethod;
 import org.codehaus.groovy.reflection.ReflectionCache;
@@ -62,6 +63,7 @@ public class GroovyCategorySupport {
             }
         }
 
+        @Override
         public boolean add(CategoryMethod o) {
             usage.incrementAndGet();
             return super.add(o);
@@ -159,24 +161,27 @@ public class GroovyCategorySupport {
             }
         }
 
-        private void cachePropertyAccessor(CategoryMethod method) {
-             String name = method.getName();
-             int parameterLength = method.getParameterTypes().length;
+        private void cachePropertyAccessor(final CategoryMethod method) {
+             final String name = method.getName();
+             final int nameLength = name.length();
+             final int parameterCount = method.getParameterTypes().length;
 
-             if (name.startsWith("get") && name.length() > 3 && parameterLength == 0) {
+             if (name.startsWith("get") && nameLength > 3 && parameterCount == 0) {
                  propertyGetterMap = putPropertyAccessor(3, name, propertyGetterMap);
-             }
-             else if (name.startsWith("set") && name.length() > 3 && parameterLength == 1) {
+             } else if (name.startsWith("is") && nameLength > 2 && parameterCount == 0
+                     && method.getReturnType().equals(boolean.class)) { // GROOVY-5245
+                 propertyGetterMap = putPropertyAccessor(2, name, propertyGetterMap);
+             } else if (name.startsWith("set") && nameLength > 3 && parameterCount == 1) {
                  propertySetterMap = putPropertyAccessor(3, name, propertySetterMap);
              }
         }
 
         // Precondition: accessorName.length() > prefixLength
-        private Map<String, String> putPropertyAccessor(int prefixLength, String accessorName, Map<String, String> map) {
+        private Map<String, String> putPropertyAccessor(final int prefixLength, final String accessorName, Map<String, String> map) {
             if (map == null) {
-              map = new HashMap<String, String>();
+                map = new HashMap<>();
             }
-            String property = accessorName.substring(prefixLength, prefixLength+1).toLowerCase() + accessorName.substring(prefixLength+1);
+            String property = BeanUtils.decapitalize(accessorName.substring(prefixLength));
             map.put(property, accessorName);
             return map;
         }
@@ -198,13 +203,16 @@ public class GroovyCategorySupport {
             return level == 0 ? null : get(name);
         }
 
-
-        String getPropertyCategoryGetterName(String propertyName){
-            return propertyGetterMap != null ? propertyGetterMap.get(propertyName) : null;
+        String getPropertyCategoryGetterName(String propertyName) {
+            if (propertyGetterMap == null) return null;
+            String getter = propertyGetterMap.get(propertyName);
+            return getter != null ? getter : propertyGetterMap.get(BeanUtils.decapitalize(propertyName));
         }
 
-        String getPropertyCategorySetterName(String propertyName){
-            return propertySetterMap != null ? propertySetterMap.get(propertyName) : null;
+        String getPropertyCategorySetterName(String propertyName) {
+            if (propertySetterMap == null) return null;
+            String setter = propertySetterMap.get(propertyName);
+            return setter != null ? setter : propertySetterMap.get(BeanUtils.decapitalize(propertyName));
         }
     }
 
@@ -218,32 +226,24 @@ public class GroovyCategorySupport {
             this.metaClass = metaClass;
         }
 
+        @Override
         public boolean isCacheable() { return false; }
 
         /**
          * Sort by most specific to least specific.
          *
-         * @param o the object to compare against
+         * @param that the object to compare against
          */
-        public int compareTo(Object o) {
-            CategoryMethod thatMethod = (CategoryMethod) o;
+        @Override
+        public int compareTo(final Object that) {
             Class thisClass = metaClass;
-            Class thatClass = thatMethod.metaClass;
-            if (thisClass == thatClass) return 0;
-            if (isChildOfParent(thisClass, thatClass)) return -1;
-            if (isChildOfParent(thatClass, thisClass)) return 1;
-            return 0;
-        }
+            Class thatClass = ((CategoryMethod) that).metaClass;
 
-        private boolean isChildOfParent(Class candidateChild, Class candidateParent) {
-            Class loop = candidateChild;
-            while(loop != null && loop != Object.class) {
-                loop = loop.getSuperclass();
-                if (loop == candidateParent) {
-                    return true;
-                }
-            }
-            return false;
+            if (thisClass == thatClass) return 0;
+            if (thisClass.isAssignableFrom(thatClass)) return 1;
+            if (thatClass.isAssignableFrom(thisClass)) return -1;
+
+            return 0;
         }
     }
 

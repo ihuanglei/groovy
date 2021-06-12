@@ -18,6 +18,8 @@
  */
 package org.codehaus.groovy.transform
 
+import groovy.test.GroovyShellTestCase
+
 class TupleConstructorTransformTest extends GroovyShellTestCase {
 
     void testOk() {
@@ -220,7 +222,6 @@ class TupleConstructorTransformTest extends GroovyShellTestCase {
             import groovy.transform.*
             import static groovy.transform.options.Visibility.*
             import static java.lang.reflect.Modifier.isPrivate
-            import static org.codehaus.groovy.control.CompilePhase.*
 
             @VisibilityOptions(PRIVATE)
             @Immutable
@@ -251,7 +252,6 @@ class TupleConstructorTransformTest extends GroovyShellTestCase {
             import groovy.transform.*
             import java.lang.reflect.Modifier
             import static groovy.transform.options.Visibility.*
-            import static org.codehaus.groovy.control.CompilePhase.*
 
             @VisibilityOptions(value = PROTECTED, id = 'first_only')
             @VisibilityOptions(constructor = PRIVATE, id = 'age_only')

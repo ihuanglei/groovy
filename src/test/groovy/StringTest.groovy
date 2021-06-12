@@ -18,6 +18,8 @@
  */
 package groovy
 
+import groovy.test.GroovyTestCase
+
 /**
  * Various tests for Strings.
  */
@@ -239,6 +241,12 @@ foo
 
         text = $/$$$$$//$
         assert text == '$$/'
+
+        //GROOVY-10024
+        def s1 = $/abc\\/$
+        def s2 = $/def\/$
+        def s3 = $/ghi/$
+        assert s1 == 'abc\\\\' && s2 == 'def\\' && s3 == 'ghi'
     }
 
     void testSplit() {
@@ -382,5 +390,36 @@ foo
         assert '1234567\t8\t '.expand() == '1234567 8        '
         assert '    x    '.unexpand() == '    x\t '
         assert '    x    \n'.unexpand() == '    x\t \n'
+    }
+
+    void "test JDK14 Escape-S should be replaced by space"() {
+        assert 'ab\scd\s'.size() == 6
+        assert 'ab\scd\s'.bytes  == [97, 98, 32, 99, 100, 32]
+        assert "ab\scd\s".size() == 6
+        assert "ab\scd\s".bytes  == [97, 98, 32, 99, 100, 32]
+    }
+
+    void "test JDK14 Escape-S should not impact slashy or dollar-slashy strings"() {
+        assert /ab\scd\s/.size() == 8
+        assert /ab\scd\s/.bytes  == [97, 98, 92, 115, 99, 100, 92, 115]
+        assert $/ab\scd\s/$.size() == 8
+        assert $/ab\scd\s/$.bytes == [97, 98, 92, 115, 99, 100, 92, 115]
+    }
+
+    void "test JDK14 Escape-S multi-line example"() {
+        // control case (existing functionality)
+        String colors = '''\
+            red   \n\
+            green \n\
+            blue  \n\
+        '''.stripIndent(true)
+        assert colors.readLines()*.size() == [6, 6, 6]
+
+        colors = '''\
+            red  \s
+            green\s
+            blue \s
+        '''.stripIndent(true)
+        assert colors.readLines()*.size() == [6, 6, 6]
     }
 }

@@ -52,16 +52,18 @@ import java.io.IOException;
  * web.xml entry:
  *
  * <pre>
- *    &lt;servlet>
- *      &lt;servlet-name>Groovy&lt;/servlet-name>
- *      &lt;servlet-class>groovy.servlet.GroovyServlet&lt;/servlet-class>
- *    &lt;/servlet>
+ * {@code
+ *    <servlet>
+ *      <servlet-name>Groovy</servlet-name>
+ *      <servlet-class>groovy.servlet.GroovyServlet</servlet-class>
+ *    </servlet>
  *
- *    &lt;servlet-mapping>
- *      &lt;servlet-name>Groovy&lt;/servlet-name>
- *      &lt;url-pattern>*.groovy&lt;/url-pattern>
- *      &lt;url-pattern>*.gdo&lt;/url-pattern>
- *    &lt;/servlet-mapping>
+ *    <servlet-mapping>
+ *      <servlet-name>Groovy</servlet-name>
+ *      <url-pattern>*.groovy</url-pattern>
+ *      <url-pattern>*.gdo</url-pattern>
+ *    </servlet-mapping>
+ * }
  * </pre>
  *
  * <p>The URL pattern does not require the "*.groovy" mapping.  You can, for
@@ -82,6 +84,7 @@ public class GroovyServlet extends AbstractHttpServlet {
      * @throws ServletException
      *  if this method encountered difficulties
      */
+    @Override
     public void init(ServletConfig config) throws ServletException {
         super.init(config);
 
@@ -94,6 +97,7 @@ public class GroovyServlet extends AbstractHttpServlet {
     /**
      * Handle web requests to the GroovyServlet
      */
+    @Override
     public void service(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
         // Get the script path from the request - include aware (GROOVY-815)
@@ -108,8 +112,8 @@ public class GroovyServlet extends AbstractHttpServlet {
 
         // Run the script
         try {
-            Closure closure = new Closure(gse) {
-
+            Closure<?> closure = new Closure<Object>(gse) {
+                @Override
                 public Object call() {
                     try {
                         return ((GroovyScriptEngine) getDelegate()).run(scriptUri, binding);

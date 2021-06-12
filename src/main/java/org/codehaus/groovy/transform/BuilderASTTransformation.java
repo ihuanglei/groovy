@@ -62,6 +62,7 @@ public class BuilderASTTransformation extends AbstractASTTransformation implemen
 
     private CompilationUnit compilationUnit;
 
+    @Override
     public void visit(ASTNode[] nodes, SourceUnit source) {
         init(nodes, source);
         AnnotatedNode parent = (AnnotatedNode) nodes[1];
@@ -255,11 +256,7 @@ public class BuilderASTTransformation extends AbstractASTTransformation implemen
 
         String className = strategyClass.getName();
         try {
-            Object instance = loader.loadClass(className).newInstance();
-            if (instance == null) {
-                addError("Can't load builderStrategy '" + className + "'", anno);
-                return null;
-            }
+            Object instance = loader.loadClass(className).getDeclaredConstructor().newInstance();
             if (!BuilderStrategy.class.isAssignableFrom(instance.getClass())) {
                 addError("The builderStrategy class '" + strategyClass.getName() + "' on " + MY_TYPE_NAME + " is not a builderStrategy", anno);
                 return null;
@@ -272,6 +269,7 @@ public class BuilderASTTransformation extends AbstractASTTransformation implemen
         }
     }
 
+    @Override
     public void setCompilationUnit(final CompilationUnit unit) {
         this.compilationUnit = unit;
     }

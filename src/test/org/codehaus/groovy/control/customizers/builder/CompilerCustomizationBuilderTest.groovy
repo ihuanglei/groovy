@@ -19,6 +19,7 @@
 package org.codehaus.groovy.control.customizers.builder
 
 import groovy.mock.interceptor.StubFor
+import groovy.test.GroovyTestCase
 import groovy.transform.ToString
 import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.control.customizers.ASTTransformationCustomizer
@@ -336,10 +337,19 @@ class CompilerCustomizationBuilderTest extends GroovyTestCase {
         def config = new CompilerConfiguration()
         CompilerCustomizationBuilder.withConfig(config) {
             secureAst {
-                importsWhitelist = []
+                allowedImports = []
             }
         }
-        assert config.compilationCustomizers.first().importsWhitelist == []
+        assert config.compilationCustomizers.first().allowedImports == []
+    }
+
+    // GROOVY-9035
+    void testEmptySourceAwareCustomizerBuilder() {
+        def builder = new CompilerCustomizationBuilder()
+        def cz = builder.source {
+            // intentionally empty
+        }
+        assert cz instanceof SourceAwareCustomizer
     }
 
     private static class SourceUnit {

@@ -16,12 +16,23 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+plugins {
+    id 'org.apache.groovy-library'
+}
+
 dependencies {
-    compile rootProject
-    compile project(':groovy-cli-picocli')
-    compile project(':groovy-console')
-    testCompile project(':groovy-test')
-    compile("jline:jline:$jlineVersion") {
+    implementation rootProject
+    implementation project(':groovy-console')
+    implementation project(':groovy-templates')
+    implementation project(':groovy-xml')
+    testImplementation project(':groovy-test')
+    implementation("jline:jline:${versions.jline}") {
         exclude(group: 'junit', module: 'junit')
+    }
+}
+
+plugins.withId('eclipse') {
+    eclipse.classpath.file.whenMerged {
+        entries.removeAll { entry -> entry.path in ['/groovy-xml', '/groovy-swing', '/groovy-templates'] }
     }
 }

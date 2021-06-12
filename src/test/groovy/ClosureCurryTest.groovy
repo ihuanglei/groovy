@@ -18,6 +18,7 @@
  */
 package groovy
 
+import groovy.test.GroovyTestCase
 import org.codehaus.groovy.runtime.DefaultGroovyMethods
 
 /**
@@ -178,8 +179,8 @@ class ClosureCurryTest extends GroovyTestCase {
         def catSearcher = Collections.&binarySearch.ncurry(1, "cat")
         def combos = [[animals1, animals2], [caseInsensitive, caseSensitive]].combinations()
         assert combos.collect{ List a, Comparator c ->
-            // make use we use DGM#sort, not JDK8 sort
-            def sorted = DefaultGroovyMethods.sort(a,c)
+            // make sure we use DGM#sort, not JDK8 sort
+            def sorted = a.sort(false, c)
             catSearcher(sorted, c)
         } == [-3, 2, -3, -4]
     }

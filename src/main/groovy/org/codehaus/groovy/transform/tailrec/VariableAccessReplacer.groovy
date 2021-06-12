@@ -48,21 +48,19 @@ class VariableAccessReplacer {
             return nameAndTypeMapping.containsKey(expr.name)
         }
         Closure<VariableExpression> replaceWithLocalVariable = { VariableExpression expr ->
-            Map nameAndType = nameAndTypeMapping[expr.name]
-            VariableExpression newVar = AstHelper.createVariableReference(nameAndType)
+            def newVar = AstHelper.createVariableReference(nameAndTypeMapping[expr.name])
             listener.variableReplaced(expr, newVar)
             return newVar
         }
         new VariableExpressionReplacer(when: whenParam, replaceWith: replaceWithLocalVariable).replaceIn(root)
     }
-
 }
 
 @CompileStatic
 interface VariableReplacedListener {
     void variableReplaced(VariableExpression oldVar, VariableExpression newVar)
 
-    static VariableReplacedListener NULL = new VariableReplacedListener() {
+    public static VariableReplacedListener NULL = new VariableReplacedListener() {
         @Override
         void variableReplaced(VariableExpression oldVar, VariableExpression newVar) {
             //do nothing

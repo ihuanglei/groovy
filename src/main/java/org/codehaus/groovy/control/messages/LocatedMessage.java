@@ -24,25 +24,29 @@ import org.codehaus.groovy.syntax.CSTNode;
 
 import java.io.PrintWriter;
 
-
 /**
  * A base class for compilation messages.
  */
 public class LocatedMessage extends SimpleMessage {
-    protected CSTNode context;  // The CSTNode that indicates the location to which the message applies
+
+    /** The CSTNode that indicates the location to which the message applies. */
+    private CSTNode context;
 
     public LocatedMessage(String message, CSTNode context, SourceUnit source) {
         super(message, source);
         this.context = context;
     }
 
-
     public LocatedMessage(String message, Object data, CSTNode context, SourceUnit source) {
         super(message, data, source);
         this.context = context;
     }
 
+    public CSTNode getContext() {
+        return context;
+    }
 
+    @Override
     public void write(PrintWriter writer, Janitor janitor) {
         if (owner instanceof SourceUnit) {
             SourceUnit source = (SourceUnit) owner;
@@ -63,9 +67,4 @@ public class LocatedMessage extends SimpleMessage {
             writer.println("");
         }
     }
-
 }
-
-
-
-

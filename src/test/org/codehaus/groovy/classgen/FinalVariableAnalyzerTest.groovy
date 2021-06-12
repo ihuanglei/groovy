@@ -18,6 +18,7 @@
  */
 package org.codehaus.groovy.classgen
 
+import groovy.test.GroovyTestCase
 import groovy.transform.CompileStatic
 import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.ast.InnerClassNode
@@ -500,6 +501,36 @@ class FinalVariableAnalyzerTest extends GroovyTestCase {
 
             assert method(null) == 'Cannot invoke method trim() on null object'
             assert method('  42  ') == 42
+        '''
+    }
+
+    // GROOVY-9424
+    void testFinalVarInitializedByAllSwitchBranches() {
+        assertScript '''
+            final String result
+
+            switch (2) {
+                case 1: result = 'a'; break
+                case 2: // fallthrough
+                case 3: result = 'b'; break
+                case 4: throw new RuntimeException('Boom')
+                case 5: return
+                default: result = 'x'
+            }
+
+            assert result == 'b'
+        '''
+    }
+
+    // GROOVY-9438
+    void testFinalVarWithSwitchAsLastStatementAndCaseContainingOnlyBreak() {
+        assertScript '''
+            switch(1) {
+                case 1:
+                    break
+                default:
+                    println 2
+            }
         '''
     }
 

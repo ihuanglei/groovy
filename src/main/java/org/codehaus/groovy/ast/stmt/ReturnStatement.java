@@ -22,6 +22,8 @@ import org.codehaus.groovy.ast.GroovyCodeVisitor;
 import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.codehaus.groovy.ast.expr.Expression;
 
+import static org.codehaus.groovy.ast.tools.GeneralUtils.nullX;
+
 /**
  * A return statement
  */
@@ -30,41 +32,44 @@ public class ReturnStatement extends Statement {
      * Only used for synthetic return statements emitted by the compiler.
      * For comparisons use isReturningNullOrVoid() instead.
      */
-    public static final ReturnStatement RETURN_NULL_OR_VOID = new ReturnStatement(ConstantExpression.NULL);
+    public static final ReturnStatement RETURN_NULL_OR_VOID = new ReturnStatement(nullX());
 
     private Expression expression;
-    
-    public ReturnStatement(ExpressionStatement statement) {
+
+    public ReturnStatement(final ExpressionStatement statement) {
         this(statement.getExpression());
-        setStatementLabel(statement.getStatementLabel());
+        copyStatementLabels(statement);
     }
-    
-    public ReturnStatement(Expression expression) {
-        this.expression = expression;
-    }
-    
-    public void visit(GroovyCodeVisitor visitor) {
-        visitor.visitReturnStatement(this);
+
+    public ReturnStatement(final Expression expression) {
+        setExpression(expression);
     }
 
     public Expression getExpression() {
         return expression;
     }
 
+    public void setExpression(final Expression expression) {
+        this.expression = expression;
+    }
+
+    @Override
     public String getText() {
         return "return " + expression.getText();
     }
 
-    public void setExpression(Expression expression) {
-        this.expression = expression;
-    }
-
     public boolean isReturningNullOrVoid() {
         return expression instanceof ConstantExpression
-            && ((ConstantExpression)expression).isNullExpression();
+            && ((ConstantExpression) expression).isNullExpression();
     }
 
+    @Override
     public String toString() {
         return super.toString() + "[expression:" + expression + "]";
+    }
+
+    @Override
+    public void visit(final GroovyCodeVisitor visitor) {
+        visitor.visitReturnStatement(this);
     }
 }

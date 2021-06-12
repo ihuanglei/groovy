@@ -33,6 +33,7 @@ public class AnnotationConstantExpression extends ConstantExpression {
         setType(node.getClassNode());
     }
 
+    @Override
     public void visit(GroovyCodeVisitor visitor) {
         AnnotationNode node = (AnnotationNode) getValue();
         Map<String, Expression> attrs = node.getMembers();
@@ -42,7 +43,8 @@ public class AnnotationConstantExpression extends ConstantExpression {
         super.visit(visitor);
     }
 
+    @Override
     public String toString() {
-        return "AnnotationConstantExpression[" + getValue() + "]";
+        return super.toString() + "[" + getValue() + "]";
     }
 }

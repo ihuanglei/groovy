@@ -16,10 +16,14 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+import groovy.test.GroovyTestCase
+
 class TestingASTTransformsTest extends GroovyTestCase {
+
     void testNotYetImplemented() {
         assertScript '''// tag::notyetimplemented[]
-import groovy.transform.NotYetImplemented
+import groovy.test.GroovyTestCase
+import groovy.test.NotYetImplemented
 
 class Maths {
     static int fib(int n) {
@@ -50,21 +54,20 @@ new MathsTest().testFib()'''
     }
 
     void testASTTest() {
-        assertScript '''// tag::asttest_basic[]
+        def err = shouldFail '''// tag::asttest_basic[]
 import groovy.transform.ASTTest
 import org.codehaus.groovy.ast.ClassNode
-import static org.codehaus.groovy.control.CompilePhase.*
 
 @ASTTest(phase=CONVERSION, value={   // <1>
     assert node instanceof ClassNode // <2>
     assert node.name == 'Person'     // <3>
 })
 class Person {
-
 }
 // end::asttest_basic[]
 def p = new Person()
 '''
+        assert err =~ /ASTTest phase must be at least SEMANTIC_ANALYSIS/
     }
 
     void testASTTestWithPackageScope() {
@@ -73,9 +76,7 @@ def p = new Person()
 import groovy.transform.ASTTest
 import groovy.transform.PackageScope
 
-import static org.codehaus.groovy.control.CompilePhase.*
-
-@ASTTest(phase=SEMANTIC_ANALYSIS, value= {
+@ASTTest(phase=SEMANTIC_ANALYSIS, value={
     def nameNode = node.properties.find { it.name == 'name' }
     def ageNode = node.properties.find { it.name == 'age' }
     assert nameNode
@@ -91,6 +92,7 @@ class Person {
 def p = new Person()
 '''
     }
+
     void testASTTestWithForLoop() {
         assertScript '''
 // tag::asttest_forloop[]
@@ -100,10 +102,8 @@ import org.codehaus.groovy.ast.ClassHelper
 import org.codehaus.groovy.ast.expr.DeclarationExpression
 import org.codehaus.groovy.ast.stmt.ForStatement
 
-import static org.codehaus.groovy.control.CompilePhase.*
-
 class Something {
-    @ASTTest(phase=SEMANTIC_ANALYSIS, value= {
+    @ASTTest(phase=SEMANTIC_ANALYSIS, value={
         def forLoop = lookup('anchor')[0]
         assert forLoop instanceof ForStatement
         def decl = forLoop.collectionExpression.expressions[0]
@@ -165,11 +165,11 @@ import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.control.CompilePhase
 
 @ASTTest(value={
-    if (compilePhase==CompilePhase.INSTRUCTION_SELECTION) {             // <1>
+    if (compilePhase == CompilePhase.INSTRUCTION_SELECTION) {           // <1>
         println "toString() was added at phase: ${added}"
         assert added == CompilePhase.CANONICALIZATION                   // <2>
     } else {
-        if (node.getDeclaredMethods('toString') && added==null) {       // <3>
+        if (node.getDeclaredMethods('toString') && added == null) {     // <3>
             added = compilePhase                                        // <4>
         }
     }

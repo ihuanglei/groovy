@@ -18,6 +18,7 @@
  */
 package org.codehaus.groovy.transform
 
+import groovy.transform.AutoFinal
 import groovy.transform.TimedInterrupt
 import org.codehaus.groovy.ast.ASTNode
 import org.codehaus.groovy.ast.AnnotatedNode
@@ -35,6 +36,7 @@ import org.codehaus.groovy.ast.expr.Expression
 import org.codehaus.groovy.ast.stmt.BlockStatement
 import org.codehaus.groovy.ast.stmt.DoWhileStatement
 import org.codehaus.groovy.ast.stmt.ForStatement
+import org.codehaus.groovy.ast.stmt.Statement
 import org.codehaus.groovy.ast.stmt.WhileStatement
 import org.codehaus.groovy.control.CompilePhase
 import org.codehaus.groovy.control.SourceUnit
@@ -44,6 +46,7 @@ import java.util.concurrent.TimeoutException
 
 import static org.codehaus.groovy.ast.ClassHelper.make
 import static org.codehaus.groovy.ast.tools.GeneralUtils.args
+import static org.codehaus.groovy.ast.tools.GeneralUtils.block
 import static org.codehaus.groovy.ast.tools.GeneralUtils.callX
 import static org.codehaus.groovy.ast.tools.GeneralUtils.classX
 import static org.codehaus.groovy.ast.tools.GeneralUtils.constX
@@ -54,6 +57,8 @@ import static org.codehaus.groovy.ast.tools.GeneralUtils.plusX
 import static org.codehaus.groovy.ast.tools.GeneralUtils.propX
 import static org.codehaus.groovy.ast.tools.GeneralUtils.throwS
 import static org.codehaus.groovy.ast.tools.GeneralUtils.varX
+import static org.objectweb.asm.Opcodes.ACC_FINAL
+import static org.objectweb.asm.Opcodes.ACC_PRIVATE
 
 /**
  * Allows "interrupt-safe" executions of scripts by adding timer expiration
@@ -63,20 +68,21 @@ import static org.codehaus.groovy.ast.tools.GeneralUtils.varX
  * @see groovy.transform.ThreadInterrupt
  * @since 1.8.0
  */
-@GroovyASTTransformation(phase = CompilePhase.CANONICALIZATION)
-public class TimedInterruptibleASTTransformation extends AbstractASTTransformation {
+@AutoFinal @GroovyASTTransformation(phase = CompilePhase.CANONICALIZATION)
+class TimedInterruptibleASTTransformation extends AbstractASTTransformation {
 
     private static final ClassNode MY_TYPE = make(TimedInterrupt)
     private static final String CHECK_METHOD_START_MEMBER = 'checkOnMethodStart'
     private static final String APPLY_TO_ALL_CLASSES = 'applyToAllClasses'
     private static final String APPLY_TO_ALL_MEMBERS = 'applyToAllMembers'
-    private static final String THROWN_EXCEPTION_TYPE = "thrown"
+    private static final String THROWN_EXCEPTION_TYPE = 'thrown'
 
-    public void visit(ASTNode[] nodes, SourceUnit source) {
-        init(nodes, source);
+    @SuppressWarnings('Instanceof')
+    void visit(ASTNode[] nodes, SourceUnit source) {
+        init(nodes, source)
         AnnotationNode node = nodes[0]
         AnnotatedNode annotatedNode = nodes[1]
-        if (!MY_TYPE.equals(node.getClassNode())) {
+        if (!MY_TYPE.equals(node.classNode)) {
             internalError("Transformation called from wrong annotation: $node.classNode.name")
         }
 
@@ -86,13 +92,13 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
         def maximum = getConstantAnnotationParameter(node, 'value', Long.TYPE, Long.MAX_VALUE)
         def thrown = AbstractInterruptibleASTTransformation.getClassAnnotationParameter(node, THROWN_EXCEPTION_TYPE, make(TimeoutException))
 
-        Expression unit = node.getMember('unit') ?: propX(classX(TimeUnit), "SECONDS")
+        Expression unit = node.getMember('unit') ?: propX(classX(TimeUnit), 'SECONDS')
 
         // should be limited to the current SourceUnit or propagated to the whole CompilationUnit
         // DO NOT inline visitor creation in code below. It has state that must not persist between calls
         if (applyToAllClasses) {
             // guard every class and method defined in this script
-            source.getAST()?.classes?.each { ClassNode it ->
+            source.AST?.classes?.each { ClassNode it ->
                 def visitor = new TimedInterruptionVisitor(source, checkOnMethodStart, applyToAllClasses, applyToAllMembers, maximum, unit, thrown, node.hashCode())
                 visitor.visitClass(it)
             }
@@ -117,7 +123,7 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
             visitor.visitClass annotatedNode.declaringClass
         } else {
             // only guard the script class
-            source.getAST()?.classes?.each { ClassNode it ->
+            source.AST?.classes?.each { ClassNode it ->
                 if (it.isScript()) {
                     def visitor = new TimedInterruptionVisitor(source, checkOnMethodStart, applyToAllClasses, applyToAllMembers, maximum, unit, thrown, node.hashCode())
                     visitor.visitClass(it)
@@ -126,7 +132,8 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
         }
     }
 
-    static def getConstantAnnotationParameter(AnnotationNode node, String parameterName, Class type, defaultValue) {
+    @SuppressWarnings('Instanceof')
+    static getConstantAnnotationParameter(AnnotationNode node, String parameterName, Class type, defaultValue) {
         def member = node.getMember(parameterName)
         if (member) {
             if (member instanceof ConstantExpression) {
@@ -140,7 +147,7 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
                 internalError("Expecting boolean value for ${parameterName} annotation parameter. Found $member")
             }
         }
-        return defaultValue
+        defaultValue
     }
 
     private static void internalError(String message) {
@@ -148,7 +155,7 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
     }
 
     private static class TimedInterruptionVisitor extends ClassCodeVisitorSupport {
-        final private SourceUnit source
+        final SourceUnit sourceUnit
         final private boolean checkOnMethodStart
         final private boolean applyToAllClasses
         final private boolean applyToAllMembers
@@ -159,8 +166,9 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
         private final ClassNode thrown
         private final String basename
 
-        TimedInterruptionVisitor(source, checkOnMethodStart, applyToAllClasses, applyToAllMembers, maximum, unit, thrown, hash) {
-            this.source = source
+        @SuppressWarnings('ParameterCount')
+        TimedInterruptionVisitor(SourceUnit source, checkOnMethodStart, applyToAllClasses, applyToAllMembers, maximum, unit, thrown, hash) {
+            this.sourceUnit = source
             this.checkOnMethodStart = checkOnMethodStart
             this.applyToAllClasses = applyToAllClasses
             this.applyToAllMembers = applyToAllMembers
@@ -173,11 +181,10 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
         /**
          * @return Returns the interruption check statement.
          */
-        final createInterruptStatement() {
+        private Statement createInterruptStatement() {
             ifS(
-
                     ltX(
-                            propX(varX("this"), basename + '$expireTime'),
+                            propX(varX('this'), basename + '$expireTime'),
                             callX(make(System), 'nanoTime')
                     ),
                     throwS(
@@ -190,7 +197,7 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
                                                     ),
                                                     plusX(
                                                             constX('. Start time: '),
-                                                            propX(varX("this"), basename + '$startTime')
+                                                            propX(varX('this'), basename + '$startTime')
                                                     )
                                             )
 
@@ -207,10 +214,10 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
          * second one the statement to be wrapped.
          */
         private wrapBlock(statement) {
-            def stmt = new BlockStatement();
-            stmt.addStatement(createInterruptStatement());
-            stmt.addStatement(statement);
-            stmt
+            block().tap {
+                addStatement(createInterruptStatement())
+                addStatement(statement)
+            }
         }
 
         @Override
@@ -229,12 +236,13 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
                                     args(constX(maximum, true), unit)
                             )
                     )
-            );
+            )
             expireTimeField.synthetic = true
+            ClassNode dateClass = make(Date)
             startTimeField = node.addField(basename + '$startTime',
                     ACC_FINAL | ACC_PRIVATE,
-                    make(Date),
-                    ctorX(make(Date))
+                    dateClass,
+                    ctorX(dateClass)
             )
             startTimeField.synthetic = true
 
@@ -249,6 +257,7 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
         }
 
         @Override
+        @SuppressWarnings('Instanceof')
         void visitClosureExpression(ClosureExpression closureExpr) {
             def code = closureExpr.code
             if (code instanceof BlockStatement) {
@@ -289,13 +298,13 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
         }
 
         @Override
-        void visitDoWhileLoop(final DoWhileStatement doWhileStatement) {
+        void visitDoWhileLoop(DoWhileStatement doWhileStatement) {
             visitLoop(doWhileStatement)
             super.visitDoWhileLoop(doWhileStatement)
         }
 
         @Override
-        void visitWhileLoop(final WhileStatement whileStatement) {
+        void visitWhileLoop(WhileStatement whileStatement) {
             visitLoop(whileStatement)
             super.visitWhileLoop(whileStatement)
         }
@@ -304,15 +313,11 @@ public class TimedInterruptibleASTTransformation extends AbstractASTTransformati
         void visitMethod(MethodNode node) {
             if (checkOnMethodStart && !node.isSynthetic() && !node.isStatic() && !node.isAbstract()) {
                 def code = node.code
-                node.code = wrapBlock(code);
+                node.code = wrapBlock(code)
             }
             if (!node.isSynthetic() && !node.isStatic()) {
                 super.visitMethod(node)
             }
-        }
-
-        protected SourceUnit getSourceUnit() {
-            return source;
         }
     }
 }

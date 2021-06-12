@@ -45,6 +45,7 @@ public class ClassLoaderForClassArtifacts extends ClassLoader {
         return cls;
     }
 
+    @Override
     public Class loadClass(String name) throws ClassNotFoundException {
         Class cls = findLoadedClass(name);
         if (cls != null)
@@ -60,22 +61,22 @@ public class ClassLoaderForClassArtifacts extends ClassLoader {
     }
 
     public String createClassName(Method method) {
+        return createClassName(method.getName());
+    }
+
+    public String createClassName(String methodName) {
         final String name;
         final String clsName = klazz.get().getName();
         if (clsName.startsWith("java."))
-          name = clsName.replace('.','_') + "$" + method.getName();
+            name = clsName.replace('.','_') + "$" + methodName;
         else
-          name = clsName + "$" + method.getName();
+            name = clsName + "$" + methodName;
         int suffix = classNamesCounter.getAndIncrement();
         return suffix == -1? name : name + "$" + suffix;
     }
 
     public Constructor defineClassAndGetConstructor(final String name, final byte[] bytes) {
-        final Class cls = AccessController.doPrivileged( new PrivilegedAction<Class>(){
-            public Class run() {
-                return define(name, bytes);
-            }
-        });
+        final Class cls = AccessController.doPrivileged((PrivilegedAction<Class>) () -> define(name, bytes));
 
         if (cls != null) {
             try {

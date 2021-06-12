@@ -25,14 +25,23 @@ import org.codehaus.groovy.ast.Parameter;
 import org.codehaus.groovy.ast.stmt.Statement;
 
 /**
- * Represents a lambda expression such as e -> e * 2
- * or (x, y) -> x + y or (x, y) -> { x + y } or (int x, int y) -> { x + y }
+ * Represents a lambda expression such as one of these:
+ * <pre>
+ * {@code
+ * e -> e * 2
+ * (x, y) -> x + y
+ * (x, y) -> { x + y }
+ * (int x, int y) -> { x + y }
+ * }
+ * </pre>
  */
 public class LambdaExpression extends ClosureExpression {
+    private boolean serializable;
     public LambdaExpression(Parameter[] parameters, Statement code) {
         super(parameters, code);
     }
 
+    @Override
     public void visit(GroovyCodeVisitor visitor) {
         visitor.visitLambdaExpression(this);
     }
@@ -45,5 +54,13 @@ public class LambdaExpression extends ClosureExpression {
         } else {
             return "() -> { ... }";
         }
+    }
+
+    public boolean isSerializable() {
+        return serializable;
+    }
+
+    public void setSerializable(boolean serializable) {
+        this.serializable = serializable;
     }
 }

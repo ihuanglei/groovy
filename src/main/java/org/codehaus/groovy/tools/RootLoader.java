@@ -28,7 +28,7 @@ import java.util.Map;
 
 /**
  * This ClassLoader should be used as root of class loaders. Any
- * RootLoader does have it's own classpath. When searching for a
+ * RootLoader does have its own classpath. When searching for a
  * class or resource this classpath will be used. Parent
  * Classloaders are ignored first. If a class or resource
  * can't be found in the classpath of the RootLoader, then parent is
@@ -38,15 +38,14 @@ import java.util.Map;
  * classloaders. Normal is to first check parent and then look in
  * the resources you gave this classloader.
  * <p>
- * It's possible to add urls to the classpath at runtime through
- * {@link <a href="#addURL(URL)">addURL(URL)</a>}
+ * It's possible to add urls to the classpath at runtime through {@link #addURL(URL)}.
  * <p>
  * <b>Why using RootLoader?</b>
  * If you have to load classes with multiple classloaders and a
  * classloader does know a class which depends on a class only
  * a child of this loader does know, then you won't be able to
  * load the class. To load the class the child is not allowed
- * to redirect it's search for the class to the parent first.
+ * to redirect its search for the class to the parent first.
  * That way the child can load the class. If the child does not
  * have all classes to do this, this fails of course.
  * <p>
@@ -57,15 +56,17 @@ import java.util.Map;
  *           |
  *           |
  *       childLoader    (has classpath: a.jar;b.jar;c.jar)
- *       </pre>
+ * </pre>
  *
  * class C (from c.jar) extends B (from b.jar)
  *
  * childLoader.find("C")
- * --> parentLoader does know C.class, try to load it
- * --> to load C.class it has to load B.class
- * --> parentLoader is unable to find B.class in a.jar or c.jar
- * --> NoClassDefFoundException!
+ * <pre>
+ * --&gt; parentLoader does know C.class, try to load it
+ * --&gt; to load C.class it has to load B.class
+ * --&gt; parentLoader is unable to find B.class in a.jar or c.jar
+ * --&gt; NoClassDefFoundException!
+ * </pre>
  *
  * if childLoader had tried to load the class by itself, there
  * would be no problem. Changing childLoader to be a RootLoader
@@ -135,6 +136,7 @@ public class RootLoader extends URLClassLoader {
     /**
      * loads a class using the name of the class
      */
+    @Override
     protected synchronized Class loadClass(final String name, boolean resolve) throws ClassNotFoundException {
         Class c = this.findLoadedClass(name);
         if (c != null) return c;
@@ -156,6 +158,7 @@ public class RootLoader extends URLClassLoader {
     /**
      * returns the URL of a resource, or null if it is not found
      */
+    @Override
     public URL getResource(String name) {
         URL url = findResource(name);
         if (url == null) url = super.getResource(name);
@@ -165,6 +168,7 @@ public class RootLoader extends URLClassLoader {
     /**
      * adds an url to the classpath of this classloader
      */
+    @Override
     public void addURL(URL url) {
         super.addURL(url);
     }
@@ -173,6 +177,7 @@ public class RootLoader extends URLClassLoader {
         return super.findClass(name);
     }
 
+    @Override
     protected Class findClass(String name) throws ClassNotFoundException {
         throw new ClassNotFoundException(name);
     }

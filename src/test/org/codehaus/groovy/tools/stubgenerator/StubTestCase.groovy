@@ -18,6 +18,7 @@
  */
 package org.codehaus.groovy.tools.stubgenerator
 
+import groovy.test.GroovyTestCase
 import junit.framework.TestCase
 
 import static groovy.io.FileType.*
@@ -128,7 +129,7 @@ abstract class StubTestCase extends GroovyTestCase {
         def result = new File(testDirectory, "../../src/test-resources/stubgenerator/${folder}")
         if (!result.exists()) {
             // For Gradle build
-            result = new File("target/resources/test/stubgenerator/${folder}")
+            result = new File("build/resources/test/stubgenerator/${folder}")
         }
 
         result

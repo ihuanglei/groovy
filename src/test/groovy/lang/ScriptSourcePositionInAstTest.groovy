@@ -18,6 +18,7 @@
  */
 package groovy.lang
 
+import groovy.test.GroovyTestCase
 import org.codehaus.groovy.control.CompilationUnit
 import org.codehaus.groovy.control.Phases
 
@@ -48,7 +49,7 @@ class ScriptSourcePositionInAstTest extends GroovyTestCase {
         assert positionsForScript("""\
             println 'hello'
             println 'bye'
-        """.stripIndent()) == [[1, 1], [2, 14]]
+        """.stripIndent(true)) == [[1, 1], [2, 14]]
     }
 
     void testScriptWithClasses() {
@@ -57,6 +58,6 @@ class ScriptSourcePositionInAstTest extends GroovyTestCase {
             println 'hello'
             println 'bye'
             class Baz{}
-        """.stripIndent()) == [[2, 1], [3, 14]]
+        """.stripIndent(true)) == [[2, 1], [3, 14]]
     }
 }

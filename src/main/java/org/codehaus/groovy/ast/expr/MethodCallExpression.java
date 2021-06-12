@@ -24,50 +24,60 @@ import org.codehaus.groovy.ast.GenericsType;
 import org.codehaus.groovy.ast.GroovyCodeVisitor;
 import org.codehaus.groovy.ast.MethodNode;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
- * A method call on an object or class
+ * A method call on an object or class.
  */
 public class MethodCallExpression extends Expression implements MethodCall {
 
     private Expression objectExpression;
     private Expression method;
     private Expression arguments;
-    private boolean spreadSafe = false;
-    private boolean safe = false;
-    private boolean implicitThis;
+
+    private boolean implicitThis = true;
+    private boolean spreadSafe;
+    private boolean safe;
 
     // type spec for generics
-    private GenericsType[] genericsTypes = null;
-    private boolean usesGenerics = false;
+    private GenericsType[] genericsTypes;
+    private boolean usesGenerics;
 
     private MethodNode target;
 
-    public static final Expression NO_ARGUMENTS = new TupleExpression();
+    public static final Expression NO_ARGUMENTS = new TupleExpression() {
+        @Override
+        public List<Expression> getExpressions() {
+            return Collections.unmodifiableList(super.getExpressions());
+        }
+        @Override
+        public TupleExpression addExpression(Expression e) {
+            throw new UnsupportedOperationException();
+        }
+    };
 
     public MethodCallExpression(Expression objectExpression, String method, Expression arguments) {
-        this(objectExpression,new ConstantExpression(method),arguments);
+        this(objectExpression, new ConstantExpression(method), arguments);
     }
 
     public MethodCallExpression(Expression objectExpression, Expression method, Expression arguments) {
-        this.objectExpression = objectExpression;
-        this.method = method;
-        if (!(arguments instanceof TupleExpression)){
-            this.arguments = new TupleExpression(arguments);
-        } else {
-            this.arguments = arguments;
-        }
-        //TODO: set correct type here
-        // if setting type and a methodcall is the last expression in a method,
+        setMethod(method);
+        setArguments(arguments);
+        setObjectExpression(objectExpression);
+
+        // TODO: set correct type here
+        // if setting type and a MethodCall is the last expression in a method,
         // then the method will return null if the method itself is not void too!
         // (in bytecode after call: aconst_null, areturn)
-        this.setType(ClassHelper.DYNAMIC_TYPE);
-        this.setImplicitThis(true);
     }
 
+    @Override
     public void visit(GroovyCodeVisitor visitor) {
         visitor.visitMethodCallExpression(this);
     }
 
+    @Override
     public Expression transformExpression(ExpressionTransformer transformer) {
         MethodCallExpression answer =
             new MethodCallExpression(transformer.transform(objectExpression), transformer.transform(method), transformer.transform(arguments));
@@ -81,13 +91,15 @@ public class MethodCallExpression extends Expression implements MethodCall {
         return answer;
     }
 
+    @Override
     public Expression getArguments() {
         return arguments;
     }
 
     public void setArguments(Expression arguments) {
-        if (!(arguments instanceof TupleExpression)){
+        if (!(arguments instanceof TupleExpression)) {
             this.arguments = new TupleExpression(arguments);
+            this.arguments.setSourcePosition(arguments);
         } else {
             this.arguments = arguments;
         }
@@ -101,28 +113,29 @@ public class MethodCallExpression extends Expression implements MethodCall {
       this.method = method;
     }
 
-    public ASTNode getReceiver() {
-        return getObjectExpression();
-    }
-
     /**
      * This method returns the method name as String if it is no dynamic
      * calculated method name, but a constant.
      */
+    @Override
     public String getMethodAsString() {
-        if (! (method instanceof ConstantExpression)) return null;
-        ConstantExpression constant = (ConstantExpression) method;
-        return constant.getText();
-    }
-
-    public void setObjectExpression(Expression objectExpression) {
-      this.objectExpression = objectExpression;
+        return (method instanceof ConstantExpression ? method.getText() : null);
     }
 
     public Expression getObjectExpression() {
         return objectExpression;
     }
 
+    public void setObjectExpression(Expression objectExpression) {
+      this.objectExpression = objectExpression;
+    }
+
+    @Override
+    public ASTNode getReceiver() {
+        return getObjectExpression();
+    }
+
+    @Override
     public String getText() {
         String object = objectExpression.getText();
         String meth = method.getText();
@@ -165,17 +178,6 @@ public class MethodCallExpression extends Expression implements MethodCall {
         this.implicitThis = implicitThis;
     }
 
-    public String toString() {
-        return super.toString()
-            + "[object: "
-            + objectExpression
-            + " method: "
-            + method
-            + " arguments: "
-            + arguments
-            + "]";
-    }
-
     public GenericsType[] getGenericsTypes() {
         return genericsTypes;
     }
@@ -190,23 +192,49 @@ public class MethodCallExpression extends Expression implements MethodCall {
     }
 
     /**
+     * @return the target as method node if set
+     */
+    public MethodNode getMethodTarget() {
+        return target;
+    }
+
+    /**
      * Sets a method call target for a direct method call.
      * WARNING: A method call made this way will run outside of the MOP!
      * @param mn the target as MethodNode, mn==null means no target
      */
     public void setMethodTarget(MethodNode mn) {
         this.target = mn;
-        if (mn!=null) {
+        if (mn != null) {
             setType(target.getReturnType());
         } else {
             setType(ClassHelper.OBJECT_TYPE);
         }
     }
 
-    /**
-     * @return the target as method node if set
-     */
-    public MethodNode getMethodTarget() {
-        return target;
+    @Override
+    public void setSourcePosition(ASTNode node) {
+        super.setSourcePosition(node);
+        // GROOVY-8002: propagate position to (possibly new) method expression
+        if (node instanceof MethodCall) {
+            if (node instanceof MethodCallExpression) {
+                method.setSourcePosition(((MethodCallExpression) node).getMethod());
+            } else if (node.getLineNumber() > 0) {
+                method.setLineNumber(node.getLineNumber());
+                method.setColumnNumber(node.getColumnNumber());
+                method.setLastLineNumber(node.getLineNumber());
+                method.setLastColumnNumber(node.getColumnNumber() + getMethodAsString().length());
+            }
+            if (arguments != null) {
+                arguments.setSourcePosition(((MethodCall) node).getArguments());
+            }
+        } else if (node instanceof PropertyExpression) {
+            method.setSourcePosition(((PropertyExpression) node).getProperty());
+        }
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + "[object: " + objectExpression + " method: " + method + " arguments: " + arguments + "]";
     }
 }

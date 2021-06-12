@@ -39,6 +39,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static org.codehaus.groovy.ast.ClassHelper.make;
+import static org.codehaus.groovy.ast.tools.ClosureUtils.getParametersSafe;
 
 /**
  * Handles generation of code for the {@link AutoFinal} annotation.
@@ -52,6 +53,7 @@ public class AutoFinalASTTransformation extends AbstractASTTransformation {
     private AnnotatedNode candidate;
 
 
+    @Override
     public void visit(ASTNode[] nodes, SourceUnit source) {
         init(nodes, source);
         final ClassCodeVisitorSupport visitor = createVisitor();
@@ -65,7 +67,7 @@ public class AutoFinalASTTransformation extends AbstractASTTransformation {
                 if (expression.isSynthetic()) {
                     return;
                 }
-                Parameter[] origParams = expression.getParameters();
+                Parameter[] origParams = getParametersSafe(expression);
                 for (Parameter p : origParams) {
                     p.setModifiers(p.getModifiers() | Modifier.FINAL);
                 }
@@ -93,6 +95,7 @@ public class AutoFinalASTTransformation extends AbstractASTTransformation {
                 }
             }
 
+            @Override
             protected SourceUnit getSourceUnit() {
                 return sourceUnit;
             }

@@ -16,9 +16,22 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+plugins {
+    id 'org.apache.groovy-library'
+}
+
 dependencies {
-    compile rootProject
-    testCompile project(':groovy-test')
-    testRuntime project(':groovy-ant')
-    testCompile project(':groovy-dateutil')
+    api rootProject  // JsonBuilder extends GroovyObjectSupport...
+    testImplementation project(':groovy-test')
+    testImplementation project(':groovy-dateutil')
+    testImplementation 'net.javacrumbs.json-unit:json-unit:2.25.0'
+    testRuntimeOnly "org.slf4j:slf4j-api:${versions.slf4j}"
+    testRuntimeOnly project(':groovy-ant') // for JavadocAssertionTests
+    testRuntimeOnly 'com.google.code.gson:gson:2.8.6' // json-unit requires gson, jackson1, or jackson2
+}
+
+plugins.withId('eclipse') {
+    eclipse.classpath.file.whenMerged {
+        entries.removeAll { entry -> entry.path in ['/groovy-ant', '/groovy-groovydoc'] }
+    }
 }

@@ -16,16 +16,22 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-
-ext {
-    jacksondataformatyamlVersion = '2.9.8'
-    jacksondatabindVersion = '2.9.8'
+plugins {
+    id 'org.apache.groovy-library'
 }
 
 dependencies {
-    compile rootProject
-    compile "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksondataformatyamlVersion"
-    compile "com.fasterxml.jackson.core:jackson-databind:$jacksondatabindVersion"
-    compile project(':groovy-json')
-    testCompile project(':groovy-test')
+    api rootProject  // YamlBuilder extends GroovyObjectSupport...
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${versions.jackson}"
+    implementation "com.fasterxml.jackson.core:jackson-databind:${versions.jackson}"
+    implementation project(':groovy-json')
+    testImplementation project(':groovy-test')
+    testRuntimeOnly "com.fasterxml.jackson.core:jackson-annotations:${versions.jackson}"
+    testRuntimeOnly project(':groovy-ant') // for JavadocAssertionTests
+}
+
+plugins.withId('eclipse') {
+    eclipse.classpath.file.whenMerged {
+        entries.removeAll { entry -> entry.path in ['/groovy-ant', '/groovy-groovydoc'] }
+    }
 }

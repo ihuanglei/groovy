@@ -45,8 +45,7 @@ public class ArgumentListExpression extends TupleExpression {
     }
 
     public ArgumentListExpression(Parameter[] parameters) {
-        for (int i = 0; i < parameters.length; i++) {
-            Parameter parameter = parameters[i];
+        for (Parameter parameter : parameters) {
             addExpression(new VariableExpression(parameter));
         }
     }
@@ -63,6 +62,7 @@ public class ArgumentListExpression extends TupleExpression {
         super(expr1, expr2, expr3);
     }
 
+    @Override
     public Expression transformExpression(ExpressionTransformer transformer) {
         Expression ret = new ArgumentListExpression(transformExpressions(getExpressions(), transformer));
         ret.setSourcePosition(this);
@@ -70,6 +70,7 @@ public class ArgumentListExpression extends TupleExpression {
         return ret;
     }
     
+    @Override
     public void visit(GroovyCodeVisitor visitor) {
         visitor.visitArgumentlistExpression(this);
     }

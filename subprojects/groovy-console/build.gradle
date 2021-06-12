@@ -16,20 +16,33 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-evaluationDependsOn(':groovy-swing')
-
-dependencies {
-    compile rootProject
-    compile project(':groovy-cli-picocli')
-    compile project(':groovy-swing')
-    compile project(':groovy-templates')
-    testCompile project(':groovy-test')
-    testCompile project(':groovy-swing').sourceSets.test.runtimeClasspath
+plugins {
+    id 'org.apache.groovy-library'
 }
 
-task console(type: JavaExec, dependsOn:classes) {
+dependencies {
+    api rootProject // AstBrowser has methods with Closure params...
+    implementation "com.github.javaparser:javaparser-core:${versions.javaParser}"
+    implementation "org.ow2.asm:asm-util:${versions.asm}"
+    implementation "org.abego.treelayout:org.abego.treelayout.core:${versions.treelayout}"
+    implementation project(':groovy-swing')
+    implementation project(':groovy-templates')
+    implementation ("org.apache.ivy:ivy:${versions.ivy}") {
+        transitive = false
+    }
+    testImplementation project(':groovy-test')
+    testImplementation testFixtures(project(':groovy-swing'))
+
+    groovyCompilerClasspath(project(":")) {
+        capabilities {
+            requireCapability 'org.apache.groovy:groovy-grapes'
+        }
+    }
+}
+
+tasks.register("console", JavaExec) {
     jvmArgs += ["-Dgroovy.attach.groovydoc=true"]
 
-    main = 'groovy.ui.Console'
+    main = 'groovy.console.ui.Console'
     classpath = sourceSets.main.runtimeClasspath
 }

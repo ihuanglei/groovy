@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Objects;
 
 import static org.apache.groovy.json.internal.CharScanner.isInteger;
 import static org.apache.groovy.json.internal.CharScanner.parseIntFromTo;
@@ -64,6 +65,7 @@ public class CharSequenceValue implements Value, CharSequence {
         }
     }
 
+    @Override
     public String toString() {
         if (startIndex == 0 && endIndex == buffer.length) {
             return FastStringUtils.noCopyStringFromChars(buffer);
@@ -72,10 +74,12 @@ public class CharSequenceValue implements Value, CharSequence {
         }
     }
 
+    @Override
     public final Object toValue() {
         return value != null ? value : (value = doToValue());
     }
 
+    @Override
     public <T extends Enum> T toEnum(Class<T> cls) {
         switch (type) {
             case STRING:
@@ -108,6 +112,7 @@ public class CharSequenceValue implements Value, CharSequence {
         return null;
     }
 
+    @Override
     public boolean isContainer() {
         return false;
     }
@@ -147,6 +152,7 @@ public class CharSequenceValue implements Value, CharSequence {
         return null;
     }
 
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof Value)) return false;
@@ -157,10 +163,11 @@ public class CharSequenceValue implements Value, CharSequence {
         if (startIndex != value1.startIndex) return false;
         if (!Arrays.equals(buffer, value1.buffer)) return false;
         if (type != value1.type) return false;
-        return value != null ? value.equals(value1.value) : value1.value == null;
+        return Objects.equals(value, value1.value);
 
     }
 
+    @Override
     public int hashCode() {
         int result = type != null ? type.hashCode() : 0;
         result = 31 * result + (buffer != null ? Arrays.hashCode(buffer) : 0);
@@ -170,26 +177,32 @@ public class CharSequenceValue implements Value, CharSequence {
         return result;
     }
 
+    @Override
     public final int length() {
         return buffer.length;
     }
 
+    @Override
     public final char charAt(int index) {
         return buffer[index];
     }
 
+    @Override
     public final CharSequence subSequence(int start, int end) {
         return new CharSequenceValue(false, type, start, end, buffer, decodeStrings, checkDate);
     }
 
+    @Override
     public BigDecimal bigDecimalValue() {
         return new BigDecimal(buffer, startIndex, endIndex - startIndex);
     }
 
+    @Override
     public BigInteger bigIntegerValue() {
         return new BigInteger(toString());
     }
 
+    @Override
     public String stringValue() {
         if (this.decodeStrings) {
             return JsonStringDecoder.decodeForSure(buffer, startIndex, endIndex);
@@ -198,10 +211,12 @@ public class CharSequenceValue implements Value, CharSequence {
         }
     }
 
+    @Override
     public String stringValueEncoded() {
         return JsonStringDecoder.decode(buffer, startIndex, endIndex);
     }
 
+    @Override
     public Date dateValue() {
         if (type == Type.STRING) {
 
@@ -223,6 +238,7 @@ public class CharSequenceValue implements Value, CharSequence {
         }
     }
 
+    @Override
     public int intValue() {
         int sign = 1;
         if (buffer[startIndex] == '-') {
@@ -232,6 +248,7 @@ public class CharSequenceValue implements Value, CharSequence {
         return parseIntFromTo(buffer, startIndex, endIndex) * sign;
     }
 
+    @Override
     public long longValue() {
         if (isInteger(buffer, startIndex, endIndex - startIndex)) {
             return parseIntFromTo(buffer, startIndex, endIndex);
@@ -240,26 +257,32 @@ public class CharSequenceValue implements Value, CharSequence {
         }
     }
 
+    @Override
     public byte byteValue() {
         return (byte) intValue();
     }
 
+    @Override
     public short shortValue() {
         return (short) intValue();
     }
 
+    @Override
     public double doubleValue() {
         return CharScanner.parseDouble(this.buffer, startIndex, endIndex);
     }
 
+    @Override
     public boolean booleanValue() {
         return Boolean.parseBoolean(toString());
     }
 
+    @Override
     public float floatValue() {
         return CharScanner.parseFloat(this.buffer, startIndex, endIndex);
     }
 
+    @Override
     public final void chop() {
         if (!chopped) {
             this.chopped = true;
@@ -269,6 +292,7 @@ public class CharSequenceValue implements Value, CharSequence {
         }
     }
 
+    @Override
     public char charValue() {
         return buffer[startIndex];
     }

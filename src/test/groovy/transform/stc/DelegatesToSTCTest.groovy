@@ -18,13 +18,12 @@
  */
 package groovy.transform.stc
 
-import org.codehaus.groovy.control.ParserVersion
-
 /**
  * Units tests aimed at testing the behavior of {@link DelegatesTo} in combination
  * with static type checking.
  */
 class DelegatesToSTCTest extends StaticTypeCheckingTestCase {
+
     void testShouldChooseMethodFromOwner() {
         assertScript '''
             class Delegate {
@@ -279,24 +278,21 @@ class DelegatesToSTCTest extends StaticTypeCheckingTestCase {
     }
 
     void testShouldFailDelegateToParameterIfNoTargetSpecified() {
-        shouldFailWithMessages '''
-        class Foo {
-            boolean called = false
-            def foo() { called = true }
-        }
+        shouldFailWithMessages '''\
+            class Foo {
+                boolean called = false
+                def bar() { called = true }
+            }
 
-        def with(Object target, @DelegatesTo Closure arg) {
-            arg.delegate = target
-            arg()
-        }
+            def m(Object o, @DelegatesTo Closure c) {
+                c.delegate = o
+                c.call()
+            }
 
-        def test() {
-            def obj = new Foo()
-            with(obj) { foo() }
-            assert obj.called
-        }
-        test()
-        ''', 'Not enough arguments found for a @DelegatesTo method call', 'Cannot find matching method'
+            def foo = new Foo()
+            m(foo) { -> bar() }
+            assert foo.called
+        ''', 'Not enough arguments found for a @DelegatesTo method call', '@ line 6, column 29', 'Cannot find matching method'
     }
 
     void testDelegatesToWithSetter() {
@@ -441,42 +437,40 @@ class DelegatesToSTCTest extends StaticTypeCheckingTestCase {
     // GROOVY-6091
     void testExplicitUseOfDelegateProperty() {
         assertScript '''
-            def with(@DelegatesTo.Target Object target, @DelegatesTo(strategy = Closure.DELEGATE_FIRST) Closure arg) {
-                arg.delegate = target
-                arg.setResolveStrategy(Closure.DELEGATE_FIRST)
-                arg()
+            def with(@DelegatesTo.Target Object target, @DelegatesTo(strategy = Closure.DELEGATE_FIRST) Closure block) {
+                block.resolveStrategy = Closure.DELEGATE_FIRST
+                block.delegate = target
+                block.call()
             }
 
             def test() {
-                def obj = [1, 2]
-                with(obj) {
-                    print(delegate.last()) //error is here
+                def list = [1, 2]
+                with(list) {
+                    delegate.last() // error is here
                 }
             }
 
-            test()
-
+            assert test() == 2
         '''
     }
 
     // GROOVY-6091
     void testExplicitUseOfDelegateMethod() {
         assertScript '''
-            def with(@DelegatesTo.Target Object target, @DelegatesTo(strategy = Closure.DELEGATE_FIRST) Closure arg) {
-                arg.delegate = target
-                arg.setResolveStrategy(Closure.DELEGATE_FIRST)
-                arg()
+            def with(@DelegatesTo.Target Object target, @DelegatesTo(strategy = Closure.DELEGATE_FIRST) Closure block) {
+                block.resolveStrategy = Closure.DELEGATE_FIRST
+                block.delegate = target
+                block.call()
             }
 
             def test() {
-                def obj = [1, 2]
-                with(obj) {
-                    print(getDelegate().last()) //error is here
+                def list = [1, 2]
+                with(list) { ->
+                    getDelegate().last() // error is here
                 }
             }
 
-            test()
-
+            assert test() == 2
         '''
     }
 
@@ -635,20 +629,15 @@ class DelegatesToSTCTest extends StaticTypeCheckingTestCase {
 
         String msg = 'Cannot find matching method'
 
-        if (ParserVersion.V_2 == config.parserVersion) {
-            shouldFailWithMessages code, msg
-        } else {
-            /*
-             * Because the Parrot parser provides more accurate node position information,
-             * org.codehaus.groovy.transform.stc.StaticTypeCheckingVisitor.addError will not be interfered by wrong node position.
-             *
-             * 1) TestScripttestDelegatesToGenericArgumentTypeAndTypo0.groovy: 17: [Static type checking] - Cannot find matching method TestScripttestDelegatesToGenericArgumentTypeAndTypo0#getname(). Please check if the declared type is correct and if the method exists.
-             * 2) TestScripttestDelegatesToGenericArgumentTypeAndTypo0.groovy: 17: [Static type checking] - Cannot find matching method java.lang.Object#toUpperCase(). Please check if the declared type is correct and if the method exists.
-             *
-             */
-            shouldFailWithMessages code, msg, msg
-        }
-
+        /*
+         * Because the Parrot parser provides more accurate node position information,
+         * org.codehaus.groovy.transform.stc.StaticTypeCheckingVisitor.addError will not be interfered by wrong node position.
+         *
+         * 1) TestScripttestDelegatesToGenericArgumentTypeAndTypo0.groovy: 17: [Static type checking] - Cannot find matching method TestScripttestDelegatesToGenericArgumentTypeAndTypo0#getname(). Please check if the declared type is correct and if the method exists.
+         * 2) TestScripttestDelegatesToGenericArgumentTypeAndTypo0.groovy: 17: [Static type checking] - Cannot find matching method java.lang.Object#toUpperCase(). Please check if the declared type is correct and if the method exists.
+         *
+         */
+        shouldFailWithMessages code, msg, msg
     }
 
     // GROOVY-6323, GROOVY-6325, GROOVY-6332
@@ -731,11 +720,11 @@ class DelegatesToSTCTest extends StaticTypeCheckingTestCase {
 
             class Builder {
               def <T> T configure(@DelegatesTo.Target Class<T> target, @DelegatesTo(genericTypeIndex=0) Closure cl) {
-                def obj = target.newInstance() 
+                def obj = target.newInstance()
                 cl.delegate = obj
                 cl.resolveStrategy = Closure.DELEGATE_FIRST
                 cl.call()
-                obj 
+                obj
               }
             }
 
@@ -743,7 +732,7 @@ class DelegatesToSTCTest extends StaticTypeCheckingTestCase {
               void run() {
                 def builder = new Builder()
                 def car = builder.configure(Car) {
-                  brand = brand 
+                  brand = brand
                 }
               }
             }
@@ -825,5 +814,29 @@ class DelegatesToSTCTest extends StaticTypeCheckingTestCase {
             }
         '''
     }
-}
 
+    // GROOVY-7996
+    void testErrorForMismatchedClosureResolveStrategy() {
+        shouldFailWithMessages '''
+            class Foo {
+                def build(Closure x) { // resolve strategy OWNER_FIRST
+                    this.with(x) // resolve strategy DELEGATE_FIRST
+                }
+                def propertyMissing(String name) {
+                    'something'
+                }
+            }
+
+            class Bar {
+                protected List bars = []
+                def baz() {
+                    new Foo().build {
+                        bars.isEmpty() // fails if executed; delegate's propertyMissing takes precedence
+                    }
+                }
+            }
+
+            new Bar().baz()
+        ''', 'Closure parameter with resolve strategy OWNER_FIRST passed to method with resolve strategy DELEGATE_FIRST'
+    }
+}

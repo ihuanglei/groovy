@@ -31,7 +31,6 @@ import org.codehaus.groovy.ast.Parameter;
 import org.codehaus.groovy.ast.VariableScope;
 import org.codehaus.groovy.ast.expr.ClassExpression;
 import org.codehaus.groovy.ast.expr.ClosureExpression;
-import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.codehaus.groovy.ast.expr.Expression;
 import org.codehaus.groovy.ast.expr.MethodCallExpression;
 import org.codehaus.groovy.ast.expr.PropertyExpression;
@@ -73,6 +72,7 @@ import static org.codehaus.groovy.ast.tools.GeneralUtils.ifS;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.isInstanceOfX;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.isOrImplements;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.localVarX;
+import static org.codehaus.groovy.ast.tools.GeneralUtils.nullX;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.param;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.params;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.propX;
@@ -80,6 +80,10 @@ import static org.codehaus.groovy.ast.tools.GeneralUtils.returnS;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.stmt;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.ternaryX;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.varX;
+import static org.codehaus.groovy.ast.ClassHelper.isObjectType;
+import static org.objectweb.asm.Opcodes.ACC_FINAL;
+import static org.objectweb.asm.Opcodes.ACC_PROTECTED;
+import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 
 /**
  * Handles generation of code for the @AutoClone annotation.
@@ -96,6 +100,7 @@ public class AutoCloneASTTransformation extends AbstractASTTransformation {
     private static final ClassNode OIS_TYPE = make(ObjectInputStream.class);
     private static final ClassNode INVOKER_TYPE = make(InvokerHelper.class);
 
+    @Override
     public void visit(ASTNode[] nodes, SourceUnit source) {
         init(nodes, source);
         AnnotatedNode parent = (AnnotatedNode) nodes[1];
@@ -180,7 +185,7 @@ public class AutoCloneASTTransformation extends AbstractASTTransformation {
             BlockStatement initBody = new BlockStatement();
             Parameter initParam = param(GenericsUtils.nonGeneric(cNode), "other");
             final Expression other = varX(initParam);
-            boolean hasParent = cNode.getSuperClass() != ClassHelper.OBJECT_TYPE;
+            boolean hasParent = !isObjectType(cNode.getSuperClass());
             if (hasParent) {
                 initBody.addStatement(stmt(ctorX(ClassNode.SUPER, other)));
             }
@@ -216,11 +221,11 @@ public class AutoCloneASTTransformation extends AbstractASTTransformation {
     }
 
     private static Expression callCloneDynamicX(Expression target) {
-        return callX(INVOKER_TYPE, "invokeMethod", args(target, constX("clone"), ConstantExpression.NULL));
+        return callX(INVOKER_TYPE, "invokeMethod", args(target, constX("clone"), nullX()));
     }
 
     private static Expression callCloneDirectX(Expression direct) {
-        return ternaryX(equalsNullX(direct), ConstantExpression.NULL, callX(direct, "clone"));
+        return ternaryX(equalsNullX(direct), nullX(), callX(direct, "clone"));
     }
 
     private static void createSimpleClone(ClassNode cNode, List<FieldNode> fieldNodes, List<String> excludes) {
@@ -240,7 +245,7 @@ public class AutoCloneASTTransformation extends AbstractASTTransformation {
     private static void addSimpleCloneHelperMethod(ClassNode cNode, List<FieldNode> fieldNodes, List<String> excludes) {
         Parameter methodParam = new Parameter(GenericsUtils.nonGeneric(cNode), "other");
         final Expression other = varX(methodParam);
-        boolean hasParent = cNode.getSuperClass() != ClassHelper.OBJECT_TYPE;
+        boolean hasParent = !isObjectType(cNode.getSuperClass());
         BlockStatement methodBody = new BlockStatement();
         if (hasParent) {
             methodBody.addStatement(stmt(callSuperX("cloneOrCopyMembers", args(other))));

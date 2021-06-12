@@ -26,8 +26,6 @@ import org.codehaus.groovy.runtime.wrappers.Wrapper;
 import java.lang.reflect.Array;
 
 public class ParameterTypes {
-    private static final Class[] NO_PARAMETERS = new Class[0];
-
     protected volatile Class[] nativeParamTypes;
     protected volatile CachedClass[] parameterTypes;
 
@@ -36,11 +34,11 @@ public class ParameterTypes {
     public ParameterTypes() {
     }
 
-    public ParameterTypes(Class pt[]) {
+    public ParameterTypes(Class[] pt) {
         nativeParamTypes = pt;
     }
 
-    public ParameterTypes(String pt[]) {
+    public ParameterTypes(String[] pt) {
         nativeParamTypes = new Class[pt.length];
         for (int i = 0; i != pt.length; ++i) {
             try {
@@ -76,10 +74,9 @@ public class ParameterTypes {
 
         Class[] npt = nativeParamTypes == null ? getPT() : nativeParamTypes;
         if (npt.length == 0) {
-            nativeParamTypes = NO_PARAMETERS;
+            nativeParamTypes = MetaClassHelper.EMPTY_TYPE_ARRAY;
             setParametersTypes(CachedClass.EMPTY_ARRAY);
         } else {
-
             CachedClass[] pt = new CachedClass[npt.length];
             for (int i = 0; i != npt.length; ++i)
                 pt[i] = ReflectionCache.getCachedClass(npt[i]);

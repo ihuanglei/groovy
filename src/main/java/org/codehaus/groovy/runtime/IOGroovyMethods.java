@@ -48,7 +48,6 @@ import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
-import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Formatter;
 import java.util.Iterator;
@@ -279,6 +278,7 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
      */
     public static ObjectInputStream newObjectInputStream(InputStream inputStream, final ClassLoader classLoader) throws IOException {
         return new ObjectInputStream(inputStream) {
+            @Override
             protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
                 return Class.forName(desc.getName(), true, classLoader);
 
@@ -478,7 +478,7 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
      * <pre>
      * def s = 'The 3 quick\nbrown 4 fox'
      * def result = ''
-     * new StringReader(s).splitEachLine(/\d/){ parts ->
+     * new StringReader(s).splitEachLine(/\d/){ parts {@code ->}
      *     result += "${parts[0]}_${parts[1]}|"
      * }
      * assert result == 'The _ quick|brown _ fox|'
@@ -508,7 +508,7 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
      * <pre>
      * def s = 'The 3 quick\nbrown 4 fox'
      * def result = ''
-     * new StringReader(s).splitEachLine(~/\d/){ parts ->
+     * new StringReader(s).splitEachLine(~/\d/){ parts {@code ->}
      *     result += "${parts[0]}_${parts[1]}|"
      * }
      * assert result == 'The _ quick|brown _ fox|'
@@ -946,6 +946,7 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
             boolean nextMustRead = true;
             boolean hasNext = true;
 
+            @Override
             public boolean hasNext() {
                 if (nextMustRead && hasNext) {
                     try {
@@ -958,6 +959,7 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
                 return hasNext;
             }
 
+            @Override
             public String next() {
                 String retval = null;
                 if (nextMustRead) {
@@ -979,6 +981,7 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
                 return nv;
             }
 
+            @Override
             public void remove() {
                 throw new UnsupportedOperationException("Cannot remove() from a Reader Iterator");
             }
@@ -1011,6 +1014,7 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
             boolean nextMustRead = true;
             boolean hasNext = true;
 
+            @Override
             public boolean hasNext() {
                 if (nextMustRead && hasNext) {
                     try {
@@ -1023,6 +1027,7 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
                 return hasNext;
             }
 
+            @Override
             public Byte next() {
                 Byte retval = null;
                 if (nextMustRead) {
@@ -1037,6 +1042,7 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
                 return retval;
             }
 
+            @Override
             public void remove() {
                 throw new UnsupportedOperationException("Cannot remove() from a DataInputStream Iterator");
             }
@@ -1492,6 +1498,7 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
     public static Writable filterLine(Reader reader, @ClosureParams(value=SimpleType.class, options="java.lang.String") final Closure closure) {
         final BufferedReader br = new BufferedReader(reader);
         return new Writable() {
+            @Override
             public Writer writeTo(Writer out) throws IOException {
                 BufferedWriter bw = new BufferedWriter(out);
                 String line;
@@ -1506,6 +1513,7 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
                 return out;
             }
 
+            @Override
             public String toString() {
                 Writer buffer = new StringBuilderWriter();
                 try {
@@ -1651,50 +1659,6 @@ public class IOGroovyMethods extends DefaultGroovyMethodsSupport {
             } else {
                 self.close();
             }
-        }
-    }
-
-    static void writeUTF16BomIfRequired(final Writer writer, final String charset) throws IOException {
-        writeUTF16BomIfRequired(writer, Charset.forName(charset));
-    }
-
-    static void writeUTF16BomIfRequired(final Writer writer, final Charset charset) throws IOException {
-        if ("UTF-16BE".equals(charset.name())) {
-            writeUtf16Bom(writer, true);
-        } else if ("UTF-16LE".equals(charset.name())) {
-            writeUtf16Bom(writer, false);
-        }
-    }
-
-    static void writeUTF16BomIfRequired(final OutputStream stream, final String charset) throws IOException {
-        writeUTF16BomIfRequired(stream, Charset.forName(charset));
-    }
-
-    static void writeUTF16BomIfRequired(final OutputStream stream, final Charset charset) throws IOException {
-        if ("UTF-16BE".equals(charset.name())) {
-            writeUtf16Bom(stream, true);
-        } else if ("UTF-16LE".equals(charset.name())) {
-            writeUtf16Bom(stream, false);
-        }
-    }
-
-    private static void writeUtf16Bom(OutputStream stream, boolean bigEndian) throws IOException {
-        if (bigEndian) {
-            stream.write(-2);  // FE
-            stream.write(-1);  // FF
-        } else {
-            stream.write(-1);  // FF
-            stream.write(-2);  // FE
-        }
-    }
-
-    private static void writeUtf16Bom(Writer writer, boolean bigEndian) throws IOException {
-        if (bigEndian) {
-            writer.write(-2);  // FE
-            writer.write(-1);  // FF
-        } else {
-            writer.write(-1);  // FF
-            writer.write(-2);  // FE
         }
     }
 

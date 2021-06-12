@@ -19,7 +19,6 @@
 package org.codehaus.groovy.control;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 /**
@@ -33,10 +32,10 @@ public class Janitor implements HasCleanup {
         pending.add(object);
     }
 
+    @Override
     public void cleanup() {
-        Iterator iterator = pending.iterator();
-        while (iterator.hasNext()) {
-            HasCleanup object = (HasCleanup) iterator.next();
+        for (Object o : pending) {
+            HasCleanup object = (HasCleanup) o;
 
             try {
                 object.cleanup();

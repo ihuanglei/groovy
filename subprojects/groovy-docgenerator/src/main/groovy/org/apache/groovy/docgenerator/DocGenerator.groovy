@@ -23,7 +23,7 @@ import com.thoughtworks.qdox.model.JavaClass
 import com.thoughtworks.qdox.model.JavaMethod
 import com.thoughtworks.qdox.model.JavaParameter
 import com.thoughtworks.qdox.model.Type
-import groovy.cli.picocli.CliBuilder
+import groovy.cli.internal.CliBuilderInternal
 import groovy.text.SimpleTemplateEngine
 import groovy.text.Template
 import groovy.text.TemplateEngine
@@ -82,7 +82,7 @@ class DocGenerator {
             }
 
             def firstParam = method.parameters[0]
-            def firstParamType = firstParam.resolvedValue.isEmpty() ? firstParam.type : new Type(firstParam.resolvedValue, 0, firstParam.parentClass)
+            def firstParamType = firstParam.type
             docSource.add(firstParamType, method)
         }
         docSource.populateInheritedMethods()
@@ -207,7 +207,7 @@ class DocGenerator {
      * Main entry point.
      */
     static void main(String... args) {
-        def cli = new CliBuilder(usage : 'DocGenerator [options] [sourcefiles]', posix:false)
+        def cli = new CliBuilderInternal(usage : 'DocGenerator [options] [sourcefiles]', posix:false)
         cli.help(longOpt: 'help', messages['cli.option.help.description'])
         cli._(longOpt: 'version', messages['cli.option.version.description'])
         cli.o(longOpt: 'outputDir', args:1, argName: 'path', messages['cli.option.output.dir.description'])
@@ -232,7 +232,7 @@ class DocGenerator {
 
         def start = System.currentTimeMillis()
 
-        def outputDir = new File(options.outputDir ?: "target/html/groovy-jdk")
+        def outputDir = new File(options.outputDir ?: "build/html/groovy-jdk")
         outputDir.mkdirs()
         CONFIG.title = options.title ?: "Groovy JDK"
         if (options.links) {
@@ -286,7 +286,7 @@ class DocGenerator {
         void populateInheritedMethods() {
             def allTypes = allDocTypes.collectEntries{ [it.fullyQualifiedClassName, it] }
             allTypes.each { name, docType ->
-                if (name.endsWith('[]') || name.startsWith('primitive-types')) return
+                if (name.startsWith('primitives-and-primitive-arrays')) return
                 Type next = docType.javaClass.superClass
                 while (next != null) {
                     if (allTypes.keySet().contains(next.value)) {
@@ -313,7 +313,7 @@ class DocGenerator {
     }
 
     private static class DocPackage {
-        static final String PRIMITIVE_TYPE_PSEUDO_PACKAGE = 'primitive-types'
+        static final String PRIMITIVE_TYPE_PSEUDO_PACKAGE = 'primitives-and-primitive-arrays'
         String name
         SortedSet<DocType> docTypes = new TreeSet<DocType>(SORT_KEY_COMPARATOR)
 
@@ -529,18 +529,15 @@ class DocGenerator {
         }
 
         private static String filePathOf(String packageName) {
-            def fileSep = File.separator
-            // need to escape separator on windows for regex's sake
-            if (fileSep == '\\') fileSep *= 2
-            return packageName.replaceAll(/\./, fileSep)
+            return packageName.replace('.', File.separator)
         }
 
         static File sourceFileOf(String pathOrClassName) {
             // TODO don't hardcode like this
-            if (pathOrClassName.contains("/")) {
+            if (pathOrClassName.contains(File.separator) || pathOrClassName.contains('/')) {
                 return new File(pathOrClassName)
             }
-            new File("src/main/java/" + pathOrClassName.replace('.', '/') + ".java")
+            new File('../../src/main/java/' + pathOrClassName.replace('.', '/') + '.java')
         }
     }
 }

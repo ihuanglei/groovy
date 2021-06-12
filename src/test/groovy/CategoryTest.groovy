@@ -18,7 +18,9 @@
  */
 package groovy
 
-class CategoryTest extends GroovyTestCase {
+import groovy.test.GroovyTestCase
+
+final class CategoryTest extends GroovyTestCase {
 
     void setUp() {
         def dummy = null
@@ -65,7 +67,25 @@ class CategoryTest extends GroovyTestCase {
             assert something == "nihao"
         }
     }
-  
+
+    // GROOVY-5245
+    void testCategoryDefinedProperties2() {
+        assertScript '''
+            class Isser {
+                boolean isWorking() { true }
+            }
+            class IsserCat {
+                static boolean getWorking2(Isser b) { true }
+                static boolean isNotWorking(Isser b) { true }
+            }
+            use (IsserCat) {
+                assert new Isser().working
+                assert new Isser().working2
+                assert new Isser().notWorking // MissingPropertyException
+            }
+        '''
+    }
+
     void testCategoryReplacedPropertyAccessMethod() {
         def cth = new CategoryTestHelper()
         cth.aProperty = "aValue"
@@ -77,7 +97,7 @@ class CategoryTest extends GroovyTestCase {
         }
         assert cth.aProperty == "aValue"
     }
-    
+
     void testCategoryHiddenByClassMethod() {
       assertScript """
          class A{}
@@ -89,7 +109,7 @@ class CategoryTest extends GroovyTestCase {
          }
       """
     }
-    
+
     void testCategoryOverridingClassMethod() {
       assertScript """
          class A {def m(){1}}
@@ -109,7 +129,7 @@ class CategoryTest extends GroovyTestCase {
          }
       """
     }
-    
+
     void testCategoryWithMixedOverriding() {
       assertScript """
          class A{def m(){0}}
@@ -121,7 +141,7 @@ class CategoryTest extends GroovyTestCase {
          }
       """
     }
-    
+
     void testCategoryInheritance() {
       assertScript """
         public class Foo {
@@ -129,19 +149,19 @@ class CategoryTest extends GroovyTestCase {
             "Foo.foo()"
           }
         }
-        
+
         public class Bar extends Foo{
           static Object bar(Object obj) {
             "Bar.bar()"
           }
         }
-        
+
         def obj = new Object()
-        
+
         use(Foo){
           assert obj.foo() == "Foo.foo()"
         }
-        
+
         use(Bar){
           assert obj.bar() == "Bar.bar()"
           assert obj.foo() == "Foo.foo()"
@@ -155,17 +175,17 @@ class CategoryTest extends GroovyTestCase {
         // in call site caching this triggers the usage of POJOMetaClassSite,
         // which was missing a null check for the receiver. The last foo call
         // uses null to exaclty check that path. I use multiple calls with foo(1)
-        // before to ensure for example indy will do the right things as well, 
+        // before to ensure for example indy will do the right things as well,
         // since indy may need more than one call here.
         assertScript """
             class Cat {
-              public static findAll(Integer x, Closure cl) {1}   
+              public static findAll(Integer x, Closure cl) {1}
             }
 
              def foo(x) {
                  x.findAll {}
              }
-             
+
              use (Cat) {
                  assert foo(1) == 1
                  assert foo(1) == 1
@@ -178,15 +198,15 @@ class CategoryTest extends GroovyTestCase {
         """
     }
 
-
     def foo(x){x.bar()}
+
     void testMethodHiding1() {
         def x = new X()
         assert foo(x) == 1
         use (XCat) {
-	        assert foo(x) == 2
-	        def t = Thread.start {assert foo(x)==1}
-	        t.join()
+            assert foo(x) == 2
+            def t = Thread.start {assert foo(x)==1}
+            t.join()
         }
         assert foo(x) == 1
         def t = Thread.start {use (XCat2){assert foo(x)==3}}
@@ -198,12 +218,12 @@ class CategoryTest extends GroovyTestCase {
         def x = new X()
         assert foo(x) == 1
         use (XCat) {
-	        assert foo(x) == 2
-        	def t = Thread.start {use (XCat2){assert foo(x)==3}}
-        	t.join()
-        	assert foo(x) == 2
-	        t = Thread.start {assert foo(x)==1}
-	        t.join()
+            assert foo(x) == 2
+            def t = Thread.start {use (XCat2){assert foo(x)==3}}
+            t.join()
+            assert foo(x) == 2
+            t = Thread.start {assert foo(x)==1}
+            t.join()
         }
         assert foo(x) == 1
         def t = Thread.start {use (XCat2){assert foo(x)==3}}
@@ -211,8 +231,25 @@ class CategoryTest extends GroovyTestCase {
         assert foo(x) == 1
     }
 
-    //GROOVY-6263
-    void testCallToPrivateMethod() {
+    void testCallToPrivateMethod1() {
+        assertScript '''
+            class A {
+                private foo() { 1 }
+                def baz() { foo() }
+            }
+
+            class B extends A {}
+
+            class C {}
+
+            use(C) {
+                assert new B().baz() == 1
+            }
+        '''
+    }
+
+    // GROOVY-6263
+    void testCallToPrivateMethod2() {
         assertScript '''
             class A {
                 private foo(a) { 1 }
@@ -228,6 +265,21 @@ class CategoryTest extends GroovyTestCase {
             }
         '''
     }
+
+    // GROOVY-5453
+    void testOverloadedGetterMethod() {
+        assertScript '''
+            class Cat {
+                static getFoo(String s) {'String'}
+                static getFoo(CharSequence s) {'CharSequence'}
+            }
+            use (Cat) {
+                assert 'abc'.getFoo() == 'String'
+                assert 'abc'.foo      == 'String'
+            }
+        '''
+    }
+
     // GROOVY-3867
     void testPropertyMissing() {
         def x = new X()
@@ -272,9 +324,6 @@ class CategoryTest extends GroovyTestCase {
             }
         }
     }
-
-
-
 }
 
 class X{ def bar(){1}}

@@ -45,7 +45,6 @@ import org.codehaus.groovy.control.SourceUnit;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +63,7 @@ import static org.codehaus.groovy.ast.tools.GeneralUtils.param;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.params;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.stmt;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.varX;
+import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 
 /**
  * Handles generation of code for the @MapConstructor annotation.
@@ -84,6 +84,7 @@ public class MapConstructorASTTransformation extends AbstractASTTransformation i
         return MY_TYPE_NAME;
     }
 
+    @Override
     public void visit(ASTNode[] nodes, SourceUnit source) {
         init(nodes, source);
         AnnotatedNode parent = (AnnotatedNode) nodes[1];
@@ -142,11 +143,7 @@ public class MapConstructorASTTransformation extends AbstractASTTransformation i
                                            List<String> excludes, List<String> includes, ClosureExpression pre, ClosureExpression post, SourceUnit source) {
 
         // HACK: JavaStubGenerator could have snuck in a constructor we don't want
-        Iterator<ConstructorNode> iterator = cNode.getDeclaredConstructors().iterator();
-        while (iterator.hasNext()) {
-            ConstructorNode next = iterator.next();
-            if (next.getFirstStatement() == null) iterator.remove();
-        }
+        cNode.getDeclaredConstructors().removeIf(next -> next.getFirstStatement() == null);
 
         Set<String> names = new HashSet<String>();
         List<PropertyNode> superList;

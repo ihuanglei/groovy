@@ -59,8 +59,8 @@ import java.util.logging.Logger;
 public class AbstractTypeCheckingExtension extends TypeCheckingExtension {
     private static final Logger LOG = Logger.getLogger(GroovyTypeCheckingExtensionSupport.class.getName());
     protected final TypeCheckingContext context;
-    private final Set<MethodNode> generatedMethods = new LinkedHashSet<MethodNode>();
-    private final LinkedList<TypeCheckingScope> scopeData = new LinkedList<TypeCheckingScope>();
+    private final Set<MethodNode> generatedMethods = new LinkedHashSet<>();
+    private final LinkedList<TypeCheckingScope> scopeData = new LinkedList<>();
     // this boolean is used through setHandled(boolean)
     protected boolean handled = false;
     protected boolean debug = false;
@@ -283,7 +283,7 @@ public class AbstractTypeCheckingExtension extends TypeCheckingExtension {
         }
         setHandled(true);
         if (debug) {
-            LOG.info("Turning "+call.getText()+" into a dynamic method call returning "+returnType.toString(false));
+            LOG.info("Turning " + call.getText() + " into a dynamic method call returning " + StaticTypeCheckingSupport.prettyPrintType(returnType));
         }
         return new MethodNode(call.getMethodAsString(), 0, returnType, Parameter.EMPTY_ARRAY, ClassNode.EMPTY_ARRAY, EmptyStatement.INSTANCE);
     }
@@ -309,7 +309,7 @@ public class AbstractTypeCheckingExtension extends TypeCheckingExtension {
         storeType(pexp, returnType);
         setHandled(true);
         if (debug) {
-            LOG.info("Turning '"+pexp.getText()+"' into a dynamic property access of type "+returnType.toString(false));
+            LOG.info("Turning '" + pexp.getText() + "' into a dynamic property access of type " + StaticTypeCheckingSupport.prettyPrintType(returnType));
         }
     }
 
@@ -334,7 +334,7 @@ public class AbstractTypeCheckingExtension extends TypeCheckingExtension {
         storeType(vexp, returnType);
         setHandled(true);
         if (debug) {
-            LOG.info("Turning '"+vexp.getText()+"' into a dynamic variable access of type "+returnType.toString(false));
+            LOG.info("Turning '" + vexp.getText() + "' into a dynamic variable access of type " + StaticTypeCheckingSupport.prettyPrintType(returnType));
         }
     }
 

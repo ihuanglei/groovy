@@ -20,71 +20,71 @@ package gls.scope
 
 import gls.CompilableTestSupport
 
-public class MultipleDefinitionOfSameVariableTest extends CompilableTestSupport {
+class MultipleDefinitionOfSameVariableTest extends CompilableTestSupport {
 
-    public void testInSameBlock() {
-        shouldNotCompile """
+    void testInSameBlock() {
+        shouldNotCompile '''
             def foo = 1
             def foo = 2
-        """
+        '''
 
-        shouldNotCompile """
+        shouldNotCompile '''
             class Foo {
                 def foo() {
                     def bar=1
                     def bar=2
                 }
             }
-        """
+        '''
     }
 
-    public void testInSubBlocks() {
-        shouldNotCompile """
+    void testInSubBlocks() {
+        shouldNotCompile '''
              def foo = 1
              5.times { def foo=2 }
-        """
+        '''
 
-        shouldNotCompile """
+        shouldNotCompile '''
             def foo = 1
             label1: { def foo=2 }
-        """
+        '''
 
-        shouldNotCompile """
+        shouldNotCompile '''
             def foo = 1
             for (i in []) { def foo=2 }
-        """
+        '''
 
-        shouldNotCompile """
+        shouldNotCompile '''
             def foo = 1
             while (true) { def foo=2 }
-        """
+        '''
     }
 
-    public void testInNestedClosure() {
-        shouldNotCompile """
+    void testInNestedClosure() {
+        shouldNotCompile '''
             def foo = 1
             5.times { 6.times {def foo=2 }
-        """
+        '''
 
-        assertScript """
+        assertScript '''
             def foo = 1
             5.times { 6.times {foo=2 } }
             assert foo == 2
-        """
+        '''
     }
 
-    public void testBindingHiding() {
-        assertScript """
+    void testBindingHiding() {
+        assertScript '''
             foo = 1
             def foo = 3
             assert foo==3
             assert this.foo == 1
             assert binding.foo == 1
-        """
+        '''
     }
 
-    public void testBindingAccessInMethod() {
-        assertScript """
+    void testBindingAccessInMethod() {
+        assertScript '''
             def methodUsingBinding() {
                 try {
                     s = "  bbb  ";
@@ -95,54 +95,102 @@ public class MultipleDefinitionOfSameVariableTest extends CompilableTestSupport 
             }
             methodUsingBinding()
             assert s == "bbb"
-        """
+        '''
     }
 
-    public void testMultipleOfSameName() {
-        shouldNotCompile """
+    void testMultipleOfSameName() {
+        shouldNotCompile '''
             class DoubleField {
                 def zero = 0
                 def zero = 0
             }
-        """
+        '''
     }
 
     void testPropertyField() {
-        shouldCompile """
+        shouldCompile '''
             class A {
                 def foo
                 private foo
             }
-        """
+        '''
+    }
+
+    void testPropertyFieldBothInit() {
+        shouldNotCompile '''
+            class A {
+                def foo = 3
+                private foo = 4
+            }
+        '''
     }
 
     void testFieldProperty() {
-        shouldCompile """
+        shouldCompile '''
             class A {
                 private foo
                 def foo
             }
-        """
+        '''
+    }
+
+    void testFieldPropertyBothInit() {
+        shouldNotCompile '''
+            class A {
+                private foo = 'a'
+                def foo = 'b'
+            }
+        '''
     }
 
     void testFieldPropertyProperty() {
-        shouldNotCompile """
+        shouldNotCompile '''
             class A {
                 private foo
                 def foo
                 def foo
             }
-        """
+        '''
     }
 
     void testPropertyFieldField() {
-        shouldNotCompile """
+        shouldNotCompile '''
             class A {
                 def foo
                 private foo
                 private foo
             }
-        """
+        '''
+    }
+
+    void testFieldAndPropertyWithInit() {
+        assertScript '''
+            class X {
+                def foo = 3
+                public foo
+                public bar
+                def bar = 4
+            }
+
+            def x = new X()
+            def result = [x.foo, x.bar]
+            assert result == [3, 4]
+        '''
+    }
+
+    void testPropertyAndFieldWithInit() {
+        assertScript '''
+            class Y {
+                def foo
+                public foo = 5
+                public bar = 6
+                def bar
+            }
+
+            def y = new Y()
+            result = [y.foo, y.bar]
+            assert result == [5, 6]
+        '''
     }
 
 }

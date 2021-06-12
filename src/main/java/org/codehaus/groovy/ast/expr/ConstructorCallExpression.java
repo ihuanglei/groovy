@@ -23,7 +23,7 @@ import org.codehaus.groovy.ast.ClassNode;
 import org.codehaus.groovy.ast.GroovyCodeVisitor;
 
 /**
- * A constructor call
+ * A constructor call.
  */
 public class ConstructorCallExpression extends Expression implements MethodCall {
 
@@ -31,72 +31,79 @@ public class ConstructorCallExpression extends Expression implements MethodCall 
     private boolean usesAnonymousInnerClass;
 
     public ConstructorCallExpression(ClassNode type, Expression arguments) {
-        super.setType(type);
+        setType(type);
         if (!(arguments instanceof TupleExpression)) {
             this.arguments = new TupleExpression(arguments);
+            this.arguments.setSourcePosition(arguments);
         } else {
             this.arguments = arguments;
         }
     }
 
+    @Override
     public void visit(GroovyCodeVisitor visitor) {
         visitor.visitConstructorCallExpression(this);
     }
 
+    @Override
     public Expression transformExpression(ExpressionTransformer transformer) {
-        Expression args = transformer.transform(arguments);
-        ConstructorCallExpression ret = new ConstructorCallExpression(getType(), args);
-        ret.setSourcePosition(this);
-        ret.setUsingAnonymousInnerClass(isUsingAnonymousInnerClass());
-        ret.copyNodeMetaData(this);
-        return ret;
+        ConstructorCallExpression answer = new ConstructorCallExpression(getType(), transformer.transform(arguments));
+        answer.setUsingAnonymousInnerClass(isUsingAnonymousInnerClass());
+        answer.setSourcePosition(this);
+        answer.copyNodeMetaData(this);
+        return answer;
     }
 
+    @Override
     public ASTNode getReceiver() {
         return null;
     }
 
+    @Override
     public String getMethodAsString() {
         return "<init>";
     }
 
+    @Override
     public Expression getArguments() {
         return arguments;
     }
 
+    @Override
     public String getText() {
-        String text = null;
+        String text;
         if (isSuperCall()) {
             text = "super ";
         } else if (isThisCall()) {
             text = "this ";
         } else {
-            text = "new " + getType().getName();
+            text = "new " + getType().toString(false);
         }
-        return text + arguments.getText();
-    }
-
-    public String toString() {
-        return super.toString() + "[type: " + getType() + " arguments: " + arguments + "]";
-    }
-
-    public boolean isSuperCall() {
-        return getType() == ClassNode.SUPER;
+        return text + getArguments().getText();
     }
 
     public boolean isSpecialCall() {
         return isThisCall() || isSuperCall();
     }
 
+    public boolean isSuperCall() {
+        return getType() == ClassNode.SUPER;
+    }
+
     public boolean isThisCall() {
         return getType() == ClassNode.THIS;
+    }
+
+    public boolean isUsingAnonymousInnerClass() {
+        return usesAnonymousInnerClass;
     }
 
     public void setUsingAnonymousInnerClass(boolean usage) {
         this.usesAnonymousInnerClass = usage;
     }
 
-    public boolean isUsingAnonymousInnerClass() {
-        return usesAnonymousInnerClass;
+    @Override
+    public String toString() {
+        return super.toString() + "[type: " + getType() + " arguments: " + arguments + "]";
     }
 }

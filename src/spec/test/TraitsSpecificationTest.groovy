@@ -16,6 +16,8 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+
+import groovy.test.GroovyTestCase
 import org.codehaus.groovy.ast.ClassHelper
 import org.codehaus.groovy.ast.ClassNode
 
@@ -23,6 +25,7 @@ import org.codehaus.groovy.ast.ClassNode
  * Specification tests for the traits feature
  */
 class TraitsSpecificationTest extends GroovyTestCase {
+
     void testTraitDeclaration() {
         assertScript '''// tag::flying_simple[]
 trait FlyingAbility {                           // <1>
@@ -243,11 +246,11 @@ trait DynamicObject {                               // <1>
     def methodMissing(String name, args) {
         name.toUpperCase()
     }
-    def propertyMissing(String prop) {
-        props[prop]
+    def propertyMissing(String name) {
+        props.get(name)
     }
-    void setProperty(String prop, Object value) {
-        props[prop] = value
+    void setProperty(String name, Object value) {
+        props.put(name, value)
     }
 }
 
@@ -374,6 +377,7 @@ greet { 'Alice' }                           // <2>
     void testTraitOverrideBehavior() {
         assertScript '''
 // tag::forceoverride_header[]
+import groovy.test.GroovyTestCase
 import groovy.transform.CompileStatic
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.control.customizers.ASTTransformationCustomizer
@@ -438,7 +442,6 @@ t.setup()
 assert !t.config.compilationCustomizers.empty
 '''
     }
-
 
     void testRuntimeOverride() {
         assertScript '''// tag::runtime_forceoverride[]

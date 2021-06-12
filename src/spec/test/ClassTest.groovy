@@ -1,3 +1,5 @@
+import groovy.test.GroovyTestCase
+
 /*
  *  Licensed to the Apache Software Foundation (ASF) under one
  *  or more contributor license agreements.  See the NOTICE file
@@ -36,6 +38,24 @@ class ClassTest extends GroovyTestCase {
             def p = new Person()
             // end::class_instantiation[]
 
+        '''
+    }
+
+    void testInnerInstantiation() {
+        assertScript '''
+            // tag::inner_instantiation[]
+            class Computer {
+                class Cpu {
+                    int coreNumber
+            
+                    Cpu(int coreNumber) {
+                        this.coreNumber = coreNumber
+                    }
+                }
+            }
+
+            assert 4 == new Computer().new Cpu(4).coreNumber
+            // end::inner_instantiation[]
         '''
     }
 
@@ -313,17 +333,17 @@ class ClassTest extends GroovyTestCase {
             class Person {
                 String name
                 void name(String name) {
-                    this.name = "Wonder$name"       // <1>
+                    this.name = "Wonder $name"      // <1>
                 }
-                String wonder() {
+                String title() {
                     this.name                       // <2>
                 }
             }
             def p = new Person()
-            p.name = 'Marge'                        // <3>
-            assert p.name == 'Marge'                // <4>
-            p.name('Marge')                         // <5>
-            assert p.wonder() == 'WonderMarge'      // <6>
+            p.name = 'Diana'                        // <3>
+            assert p.name == 'Diana'                // <4>
+            p.name('Woman')                         // <5>
+            assert p.title() == 'Wonder Woman'      // <6>
             // end::property_access[]
         '''
 
@@ -357,6 +377,21 @@ class ClassTest extends GroovyTestCase {
             assert p.age == 42                  // <2>
             p.groovy = true                     // <3>
             // end::pseudo_properties[]
+        '''
+
+        assertScript '''
+            // tag::annotated_properties[]
+            class Animal {
+                int lowerCount = 0
+                @Lazy String name = { lower().toUpperCase() }()
+                String lower() { lowerCount++; 'sloth' }
+            }
+
+            def a = new Animal()
+            assert a.lowerCount == 0  // <1>
+            assert a.name == 'SLOTH'  // <2>
+            assert a.lowerCount == 1  // <3>
+            // end::annotated_properties[]
         '''
     }
 
@@ -543,7 +578,7 @@ class ClassTest extends GroovyTestCase {
             class Runner {
                 static <T> T run(Class<T> taskClass) {
                     def tasks = taskClass.newInstance()                                         // <1>
-                    def params = [jdk:6, windows: false]                                        // <2>
+                    def params = [jdk: 6, windows: false]                                       // <2>
                     tasks.class.declaredMethods.each { m ->                                     // <3>
                         if (Modifier.isPublic(m.modifiers) && m.parameterTypes.length == 0) {   // <4>
                             def onlyIf = m.getAnnotation(OnlyIf)                                // <5>

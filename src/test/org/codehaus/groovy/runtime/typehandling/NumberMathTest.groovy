@@ -1,23 +1,24 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ *  Licensed to the Apache Software Foundation (ASF) under one
+ *  or more contributor license agreements.  See the NOTICE file
+ *  distributed with this work for additional information
+ *  regarding copyright ownership.  The ASF licenses this file
+ *  to you under the Apache License, Version 2.0 (the
+ *  "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *
+ *  Unless required by applicable law or agreed to in writing,
+ *  software distributed under the License is distributed on an
+ *  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ *  KIND, either express or implied.  See the License for the
+ *  specific language governing permissions and limitations
+ *  under the License.
  */
 package org.codehaus.groovy.runtime.typehandling
+
+import groovy.test.GroovyTestCase
 
 import static org.codehaus.groovy.runtime.typehandling.NumberMath.getMath
 
@@ -108,6 +109,7 @@ class NumberMathTest extends GroovyTestCase {
         def BD1 = new BigDecimal("1.0")
         def BD2 = new BigDecimal("2.0")
         def BD20 = new BigDecimal("2.00")
+        def BD100 = new BigDecimal(new BigInteger(1), -2) // 100
 
         assert I1 / I2 instanceof BigDecimal
         assert I1 / I2 == new BigDecimal("0.5")
@@ -138,6 +140,19 @@ class NumberMathTest extends GroovyTestCase {
         assert I2 / I3 == new BigDecimal("0.6666666667")
 
         assert I1 / BD2 instanceof BigDecimal
+        assert I1 / BD2 == new BigDecimal("0.5")
+
+        assert I1 / BD20 instanceof BigDecimal
+        assert I1 / BD20 == new BigDecimal("0.5")
+
+        assert BI1 / BD2 instanceof BigDecimal
+        assert BI1 / BD2 == new BigDecimal("0.5")
+
+        assert I1 / BD100 instanceof BigDecimal
+        assert I1 / BD100 == new BigDecimal("0.01")
+
+        assert BI1 / BD100 instanceof BigDecimal
+        assert BI1 / BD100 == new BigDecimal("0.01")
 
         //Test keeping max scale of (L, R or 10)
         def BBD1 = new BigDecimal("0.12345678901234567")

@@ -18,9 +18,11 @@
  */
 package org.codehaus.groovy.runtime.powerassert
 
+import groovy.test.GroovyTestCase
+
 import static java.lang.Math.max
 import static java.lang.Math.min
-import static AssertionTestUtil.*
+import static org.codehaus.groovy.runtime.powerassert.AssertionTestUtil.*
 
 /**
  * Checks that:
@@ -30,7 +32,8 @@ import static AssertionTestUtil.*
  * <li>assertion execution has the expected result (checked explicitly)</li>
  * </ul>
  */
-class EvaluationTest extends GroovyTestCase {
+final class EvaluationTest extends GroovyTestCase {
+
     void testPassingAndFailingAsserts() {
         assert true
         fails { assert false }
@@ -153,10 +156,12 @@ class EvaluationTest extends GroovyTestCase {
     void testRangeExpression() {
         assert (1..3).contains(3)
         assert !((1..<3).contains(3))
+        assert !((1<..3).contains(1))
+        assert (!(1<..<3).contains(1) && !(1<..<3).contains(3))
     }
 
     void testPropertyExpression() {
-        assert [1,2,3].size == 3
+        assert 'A'.bytes == [65] as byte[]
         assert (new Properties().next.next.next.x = 10) == 10
         assert Integer.MIN_VALUE < Integer.MAX_VALUE
     }

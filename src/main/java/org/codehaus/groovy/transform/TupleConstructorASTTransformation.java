@@ -20,9 +20,9 @@ package org.codehaus.groovy.transform;
 
 import groovy.lang.GroovyClassLoader;
 import groovy.transform.CompilationUnitAware;
-import groovy.transform.MapConstructor;
 import groovy.transform.TupleConstructor;
 import groovy.transform.options.PropertyHandler;
+import groovy.transform.stc.POJO;
 import org.apache.groovy.ast.tools.AnnotatedNodeUtils;
 import org.codehaus.groovy.ast.ASTNode;
 import org.codehaus.groovy.ast.AnnotatedNode;
@@ -46,9 +46,7 @@ import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.control.CompilePhase;
 import org.codehaus.groovy.control.SourceUnit;
 
-import java.lang.annotation.Annotation;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -57,8 +55,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.groovy.ast.tools.AnnotatedNodeUtils.markAsGenerated;
+import static org.apache.groovy.ast.tools.ClassNodeUtils.addGeneratedConstructor;
 import static org.apache.groovy.ast.tools.ClassNodeUtils.hasExplicitConstructor;
+import static org.apache.groovy.ast.tools.ConstructorNodeUtils.checkPropNamesS;
 import static org.apache.groovy.ast.tools.VisibilityUtils.getVisibility;
 import static org.codehaus.groovy.ast.ClassHelper.make;
 import static org.codehaus.groovy.ast.ClassHelper.makeWithoutCaching;
@@ -73,12 +72,15 @@ import static org.codehaus.groovy.ast.tools.GeneralUtils.equalsNullX;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.getAllProperties;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.ifElseS;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.ifS;
+import static org.codehaus.groovy.ast.tools.GeneralUtils.nullX;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.params;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.propX;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.stmt;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.throwS;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.varX;
+import static org.codehaus.groovy.ast.ClassHelper.isObjectType;
 import static org.codehaus.groovy.transform.ImmutableASTTransformation.makeImmutable;
+import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 
 /**
  * Handles generation of code for the @TupleConstructor annotation.
@@ -91,8 +93,7 @@ public class TupleConstructorASTTransformation extends AbstractASTTransformation
     static final ClassNode MY_TYPE = make(MY_CLASS);
     static final String MY_TYPE_NAME = "@" + MY_TYPE.getNameWithoutPackage();
     private static final ClassNode LHMAP_TYPE = makeWithoutCaching(LinkedHashMap.class, false);
-    private static final ClassNode CHECK_METHOD_TYPE = make(ImmutableASTTransformation.class);
-    private static final Class<? extends Annotation> MAP_CONSTRUCTOR_CLASS = MapConstructor.class;
+    private static final ClassNode POJO_TYPE = make(POJO.class);
     private static final Map<Class<?>, Expression> primitivesInitialValues;
 
     static {
@@ -114,6 +115,7 @@ public class TupleConstructorASTTransformation extends AbstractASTTransformation
         return MY_TYPE_NAME;
     }
 
+    @Override
     public void visit(ASTNode[] nodes, SourceUnit source) {
         init(nodes, source);
         AnnotatedNode parent = (AnnotatedNode) nodes[1];
@@ -247,19 +249,13 @@ public class TupleConstructorASTTransformation extends AbstractASTTransformation
         }
 
         if (includes != null) {
-            Comparator<Parameter> includeComparator = new Comparator<Parameter>() {
-                public int compare(Parameter p1, Parameter p2) {
-                    return Integer.compare(includes.indexOf(p1.getName()), includes.indexOf(p2.getName()));
-                }
-            };
-            Collections.sort(params, includeComparator);
+            Comparator<Parameter> includeComparator = Comparator.comparingInt(p -> includes.indexOf(p.getName()));
+            params.sort(includeComparator);
         }
 
         boolean hasMapCons = AnnotatedNodeUtils.hasAnnotation(cNode, MapConstructorASTTransformation.MY_TYPE);
         int modifiers = getVisibility(anno, cNode, ConstructorNode.class, ACC_PUBLIC);
-        ConstructorNode consNode = new ConstructorNode(modifiers, params.toArray(Parameter.EMPTY_ARRAY), ClassNode.EMPTY_ARRAY, body);
-        markAsGenerated(cNode, consNode);
-        cNode.addConstructor(consNode);
+        addGeneratedConstructor(cNode, modifiers, params.toArray(Parameter.EMPTY_ARRAY), ClassNode.EMPTY_ARRAY, body);
 
         if (sourceUnit != null && !body.isEmpty()) {
             VariableScopeVisitor scopeVisitor = new VariableScopeVisitor(sourceUnit);
@@ -277,7 +273,7 @@ public class TupleConstructorASTTransformation extends AbstractASTTransformation
         // or if there is already a @MapConstructor annotation
         if (!params.isEmpty() && defaults && !hasMapCons && specialNamedArgCase) {
             ClassNode firstParamType = params.get(0).getType();
-            if (params.size() > 1 || firstParamType.equals(ClassHelper.OBJECT_TYPE)) {
+            if (params.size() > 1 || isObjectType(firstParamType)) {
                 String message = "The class " + cNode.getName() + " was incorrectly initialized via the map constructor with null.";
                 addSpecialMapConstructors(modifiers, cNode, message, false);
             }
@@ -298,12 +294,16 @@ public class TupleConstructorASTTransformation extends AbstractASTTransformation
     }
 
     private static Expression providedOrDefaultInitialValue(FieldNode fNode) {
-        Expression initialExp = fNode.getInitialExpression() != null ? fNode.getInitialExpression() : ConstantExpression.NULL;
+        Expression initialExp = fNode.getInitialExpression() != null ? fNode.getInitialExpression() : nullX();
         final ClassNode paramType = fNode.getType();
-        if (ClassHelper.isPrimitiveType(paramType) && initialExp.equals(ConstantExpression.NULL)) {
+        if (ClassHelper.isPrimitiveType(paramType) && isNull(initialExp)) {
             initialExp = primitivesInitialValues.get(paramType.getTypeClass());
         }
         return initialExp;
+    }
+
+    private static boolean isNull(Expression exp) {
+        return exp instanceof ConstantExpression && ((ConstantExpression) exp).isNullExpression();
     }
 
     public static void addSpecialMapConstructors(int modifiers, ClassNode cNode, String message, boolean addNoArg) {
@@ -314,16 +314,12 @@ public class TupleConstructorASTTransformation extends AbstractASTTransformation
         code.addStatement(ifElseS(equalsNullX(namedArgs),
                 illegalArgumentBlock(message),
                 processArgsBlock(cNode, namedArgs)));
-        ConstructorNode init = new ConstructorNode(modifiers, parameters, ClassNode.EMPTY_ARRAY, code);
-        markAsGenerated(cNode, init);
-        cNode.addConstructor(init);
+        addGeneratedConstructor(cNode, modifiers, parameters, ClassNode.EMPTY_ARRAY, code);
         // potentially add a no-arg constructor too
         if (addNoArg) {
             code = new BlockStatement();
             code.addStatement(stmt(ctorX(ClassNode.THIS, ctorX(LHMAP_TYPE))));
-            init = new ConstructorNode(modifiers, Parameter.EMPTY_ARRAY, ClassNode.EMPTY_ARRAY, code);
-            markAsGenerated(cNode, init);
-            cNode.addConstructor(init);
+            addGeneratedConstructor(cNode, modifiers, Parameter.EMPTY_ARRAY, ClassNode.EMPTY_ARRAY, code);
         }
     }
 
@@ -333,6 +329,7 @@ public class TupleConstructorASTTransformation extends AbstractASTTransformation
 
     private static BlockStatement processArgsBlock(ClassNode cNode, VariableExpression namedArgs) {
         BlockStatement block = new BlockStatement();
+        List<PropertyNode> props = new ArrayList<>();
         for (PropertyNode pNode : cNode.getProperties()) {
             if (pNode.isStatic()) continue;
 
@@ -341,8 +338,10 @@ public class TupleConstructorASTTransformation extends AbstractASTTransformation
                     callX(namedArgs, "containsKey", constX(pNode.getName())),
                     assignS(varX(pNode), propX(namedArgs, pNode.getName())));
             block.addStatement(ifStatement);
+            props.add(pNode);
         }
-        block.addStatement(stmt(callX(CHECK_METHOD_TYPE, "checkPropNames", args(varX("this"), namedArgs))));
+        boolean pojo = !cNode.getAnnotations(POJO_TYPE).isEmpty();
+        block.addStatement(checkPropNamesS(namedArgs, pojo, props));
         return block;
     }
 

@@ -70,12 +70,12 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static java.lang.Math.max;
+
 /**
  * A static helper class to make bytecode generation easier and act as a facade over the Invoker
  */
 public class InvokerHelper {
-    private static final Object[] EMPTY_MAIN_ARGS = new Object[]{new String[0]};
-
     public static final Object[] EMPTY_ARGS = {};
     protected static final Object[] EMPTY_ARGUMENTS = EMPTY_ARGS;
     protected static final Class[] EMPTY_TYPES = {};
@@ -85,6 +85,8 @@ public class InvokerHelper {
 
     public static final MetaClassRegistry metaRegistry = GroovySystem.getMetaClassRegistry();
     public static final String MAIN_METHOD_NAME = "main";
+    private static final String XMLUTIL_CLASS_FULL_NAME = "groovy.xml.XmlUtil";
+    private static final String SERIALIZE_METHOD_NAME = "serialize";
 
     public static void removeClass(Class clazz) {
         metaRegistry.removeMetaClass(clazz);
@@ -212,7 +214,7 @@ public class InvokerHelper {
             GroovyObject pogo = (GroovyObject) object;
             pogo.setProperty(property, newValue);
         } else if (object instanceof Class) {
-            metaRegistry.getMetaClass((Class) object).setProperty((Class) object, property, newValue);
+            metaRegistry.getMetaClass((Class) object).setProperty(object, property, newValue);
         } else {
             ((MetaClassRegistryImpl) GroovySystem.getMetaClassRegistry()).getMetaClass(object).setProperty(object, property, newValue);
         }
@@ -226,7 +228,6 @@ public class InvokerHelper {
         setProperty(object, property, newValue);
     }
 
-
     /**
      * This is so we don't have to reorder the stack when we call this method.
      * At some point a better name might be in order.
@@ -238,7 +239,6 @@ public class InvokerHelper {
     public static Object getGroovyObjectProperty(GroovyObject object, String property) {
         return object.getProperty(property);
     }
-
 
     /**
      * This is so we don't have to reorder the stack when we call this method.
@@ -396,10 +396,23 @@ public class InvokerHelper {
         return answer;
     }
 
+    /**
+     * According to the initial entry count, calculate the initial capacity of hash map, which is power of 2
+     * (SEE https://stackoverflow.com/questions/8352378/why-does-hashmap-require-that-the-initial-capacity-be-a-power-of-two)
+     *
+     * @param initialEntryCnt the initial entry count
+     * @return the initial capacity
+     */
+    public static int initialCapacity(int initialEntryCnt) {
+        if (0 == initialEntryCnt) return 16;
+
+        return Integer.highestOneBit(initialEntryCnt) << 1;
+    }
+
     public static Map createMap(Object[] values) {
-        Map answer = new LinkedHashMap(values.length / 2);
-        int i = 0;
-        while (i < values.length - 1) {
+        Map answer = new LinkedHashMap(initialCapacity(values.length / 2));
+
+        for (int i = 0, n = values.length; i < n - 1; ) {
             if ((values[i] instanceof SpreadMap) && (values[i + 1] instanceof Map)) {
                 Map smap = (Map) values[i + 1];
                 for (Object e : smap.entrySet()) {
@@ -418,7 +431,7 @@ public class InvokerHelper {
         if (message == null || "".equals(message)) {
             throw new PowerAssertionError(expression.toString());
         }
-        throw new AssertionError(String.valueOf(message) + ". Expression: " + expression);
+        throw new AssertionError(message + ". Expression: " + expression);
     }
 
     public static Object runScript(Class scriptClass, String[] args) {
@@ -430,6 +443,7 @@ public class InvokerHelper {
     static class NullScript extends Script {
         public NullScript() { this(new Binding()); }
         public NullScript(Binding context) { super(context); }
+        @Override
         public Object run() { return null; }
     }
 
@@ -443,37 +457,33 @@ public class InvokerHelper {
                 if (Script.class.isAssignableFrom(scriptClass)) {
                     script = newScript(scriptClass, context);
                 } else {
-                    final GroovyObject object = (GroovyObject) scriptClass.newInstance();
-                    // it could just be a class, so let's wrap it in a Script
-                    // wrapper; though the bindings will be ignored
+                    // wrap call "ScriptClass.main(args)" with a Script instance
                     script = new Script(context) {
+                        @Override
                         public Object run() {
-                            Object argsToPass = EMPTY_MAIN_ARGS;
+                            Object[] mainArgs = {new String[0]};
                             try {
                                 Object args = getProperty("args");
                                 if (args instanceof String[]) {
-                                    argsToPass = args;
+                                    mainArgs[0] = args;
                                 }
-                            } catch (MissingPropertyException e) {
-                                // They'll get empty args since none exist in the context.
+                            } catch (MissingPropertyException mpe) {
+                                // call with empty array
                             }
-                            object.invokeMethod(MAIN_METHOD_NAME, argsToPass);
-                            return null;
+                            return InvokerHelper.invokeStaticMethod(scriptClass, MAIN_METHOD_NAME, mainArgs);
                         }
                     };
-                    Map variables = context.getVariables();
-                    MetaClass mc = getMetaClass(object);
-                    for (Object o : variables.entrySet()) {
-                        Map.Entry entry = (Map.Entry) o;
-                        String key = entry.getKey().toString();
-                        // assume underscore variables are for the wrapper script
-                        setPropertySafe(key.startsWith("_") ? script : object, mc, key, entry.getValue());
-                    }
+
+                    MetaClass smc = getMetaClass(scriptClass);
+                    ((Map<?,?>) context.getVariables()).forEach((key, value) -> {
+                        String name = key.toString();
+                        if (!name.startsWith("_")) { // assume underscore variables are for the wrapper
+                            setPropertySafe(scriptClass, smc, name, value);
+                        }
+                    });
                 }
             } catch (Exception e) {
-                throw new GroovyRuntimeException(
-                        "Failed to create Script instance for class: "
-                                + scriptClass + ". Reason: " + e, e);
+                throw new GroovyRuntimeException("Failed to create Script instance for class: " + scriptClass + ". Reason: " + e, e);
             }
         }
         return script;
@@ -571,20 +581,17 @@ public class InvokerHelper {
             out.append(stringWriter.toString());
         } else if (object instanceof InputStream || object instanceof Reader) {
             // Copy stream to stream
-            Reader reader;
-            if (object instanceof InputStream) {
-                reader = new InputStreamReader((InputStream) object);
-            } else {
-                reader = (Reader) object;
-            }
-            char[] chars = new char[8192];
-            int i;
-            while ((i = reader.read(chars)) != -1) {
-                for (int j = 0; j < i; j++) {
-                    out.append(chars[j]);
+            try (Reader reader =
+                         object instanceof InputStream
+                                 ? new InputStreamReader((InputStream) object)
+                                 : (Reader) object) {
+                char[] chars = new char[8192];
+                for (int i; (i = reader.read(chars)) != -1; ) {
+                    for (int j = 0; j < i; j++) {
+                        out.append(chars[j]);
+                    }
                 }
             }
-            reader.close();
         } else {
             out.append(toString(object));
         }
@@ -642,7 +649,7 @@ public class InvokerHelper {
         }
         if (arguments instanceof Element) {
             try {
-                Method serialize = Class.forName("groovy.xml.XmlUtil").getMethod("serialize", Element.class);
+                Method serialize = Class.forName(XMLUTIL_CLASS_FULL_NAME).getMethod(SERIALIZE_METHOD_NAME, Element.class);
                 return (String) serialize.invoke(null, arguments);
             } catch (ClassNotFoundException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
                 throw new RuntimeException(e);
@@ -651,8 +658,8 @@ public class InvokerHelper {
         if (arguments instanceof String) {
             if (verbose) {
                 String arg = escapeBackslashes((String) arguments)
-                        .replaceAll("'", "\\\\'");    // single quotation mark
-                return "\'" + arg + "\'";
+                        .replace("'", "\\'");    // single quotation mark
+                return "'" + arg + "'";
             } else {
                 return (String) arguments;
             }
@@ -675,9 +682,9 @@ public class InvokerHelper {
         return orig
                 .replace("\\", "\\\\")           // backslash
                 .replace("\n", "\\n")            // line feed
-                .replaceAll("\\r", "\\\\r")      // carriage return
-                .replaceAll("\\t", "\\\\t")      // tab
-                .replaceAll("\\f", "\\\\f");     // form feed
+                .replace("\r", "\\r")            // carriage return
+                .replace("\t", "\\t")            // tab
+                .replace("\f", "\\f");           // form feed
     }
 
     private static String handleFormattingException(Object item, Exception ex) {
@@ -726,7 +733,7 @@ public class InvokerHelper {
     }
 
     private static int sizeLeft(int maxSize, StringBuilder buffer) {
-        return maxSize == -1 ? maxSize : Math.max(0, maxSize - buffer.length());
+        return maxSize == -1 ? maxSize : max(0, maxSize - buffer.length());
     }
 
     private static String formatCollection(Collection collection, boolean verbose, int maxSize, boolean safe) {
@@ -789,8 +796,8 @@ public class InvokerHelper {
         return argBuf.toString();
     }
 
-    private static Set<String> DEFAULT_IMPORT_PKGS = new HashSet<String>();
-    private static Set<String> DEFAULT_IMPORT_CLASSES = new HashSet<String>();
+    private static final Set<String> DEFAULT_IMPORT_PKGS = new HashSet<String>();
+    private static final Set<String> DEFAULT_IMPORT_CLASSES = new HashSet<String>();
     static {
         for (String pkgName : ResolveVisitor.DEFAULT_IMPORTS) {
             DEFAULT_IMPORT_PKGS.add(pkgName.substring(0, pkgName.length() - 1));
@@ -917,14 +924,19 @@ public class InvokerHelper {
         return toArrayString(arguments, false, maxSize, safe);
     }
 
-    public static List createRange(Object from, Object to, boolean inclusive) {
+    public static List createRange(Object from, Object to, boolean exclusiveLeft, boolean exclusiveRight) {
         try {
-            return ScriptBytecodeAdapter.createRange(from, to, inclusive);
+            return ScriptBytecodeAdapter.createRange(from, to, exclusiveLeft, exclusiveRight);
         } catch (RuntimeException | Error re) {
             throw re;
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
+    }
+
+    // Kept in for backwards compatibility
+    public static List createRange(Object from, Object to, boolean inclusive) {
+        return createRange(from, to, false, !inclusive);
     }
 
     public static Object bitwiseNegate(Object value) {
@@ -941,11 +953,11 @@ public class InvokerHelper {
         }
         if (value instanceof String) {
             // value is a regular expression.
-            return StringGroovyMethods.bitwiseNegate((CharSequence)value.toString());
+            return StringGroovyMethods.bitwiseNegate(value.toString());
         }
         if (value instanceof GString) {
             // value is a regular expression.
-            return StringGroovyMethods.bitwiseNegate((CharSequence)value.toString());
+            return StringGroovyMethods.bitwiseNegate(value.toString());
         }
         if (value instanceof ArrayList) {
             // value is a list.
@@ -979,12 +991,11 @@ public class InvokerHelper {
     public static Object invokeMethod(Object object, String methodName, Object arguments) {
         if (object == null) {
             object = NullObject.getNullObject();
-            //throw new NullPointerException("Cannot invoke method " + methodName + "() on null object");
         }
 
         // if the object is a Class, call a static method from that class
         if (object instanceof Class) {
-            Class theClass = (Class) object;
+            Class<?> theClass = (Class<?>) object;
             MetaClass metaClass = metaRegistry.getMetaClass(theClass);
             return metaClass.invokeStaticMethod(object, methodName, asArray(arguments));
         }

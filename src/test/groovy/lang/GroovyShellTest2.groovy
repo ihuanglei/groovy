@@ -18,9 +18,8 @@
  */
 package groovy.lang
 
-/**
- * Created by jim on 8/14/14.
- */
+import groovy.test.GroovyTestCase
+
 class GroovyShellTest2 extends GroovyTestCase {
     void testBindingsInBaseScriptInitializers() {
         def shell = new GroovyShell();

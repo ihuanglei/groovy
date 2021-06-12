@@ -18,20 +18,15 @@
  */
 package groovy.bugs
 
-import org.codehaus.groovy.tools.GroovyStarter
+import groovy.test.GroovyTestCase
+import org.apache.groovy.util.ScriptRunner
 
 class Groovy4287Bug extends GroovyTestCase {
     void testResolvingOuterStaticNestedClass() {
-        def mainScriptPath = new File(this.getClass().getResource('/groovy/bugs/groovy4287/Main.groovy').toURI()).absolutePath
-        runScript(mainScriptPath)
+        ScriptRunner.runScript('/groovy/bugs/groovy4287/Main.groovy')
     }
 
     void testResolvingOuterStaticNestedClassAlias() {
-        def mainScriptPath = new File(this.getClass().getResource('/groovy/bugs/groovy4287/Main2.groovy').toURI()).absolutePath
-        runScript(mainScriptPath)
-    }
-
-    static void runScript(String path) {
-        GroovyStarter.main(new String[] { "--main", "groovy.ui.GroovyMain", path })
+        ScriptRunner.runScript('/groovy/bugs/groovy4287/Main2.groovy')
     }
 }

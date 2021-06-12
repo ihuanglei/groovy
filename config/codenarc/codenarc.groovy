@@ -63,7 +63,7 @@ ruleset {
                 'groovy.bugs.Two,org.codehaus.groovy.runtime.FileAppendTest,org.codehaus.groovy.runtime.WriterAppendTest,' +
                 'org.codehaus.groovy.runtime.FileAppendTest,org.codehaus.groovy.runtime.WriterAppendTest,groovy.sql.PersonDTO,' +
                 'groovy.bugs.Groovy3135Bug,Sphere,groovy.sql.PersonDTO,groovy.bugs.Groovy3135Bug,' +
-                'gls.enums.GrooyColors3693,groovy.sql.PersonDTO,groovy.bugs.HasStaticFieldSomeClass,groovy.PrintTest,' +
+                'gls.enums.GroovyColors3693,groovy.sql.PersonDTO,groovy.bugs.HasStaticFieldSomeClass,groovy.PrintTest,' +
                 'groovy.bugs.StaticClosurePropertyBug,groovy.bugs.Groovy3311Bug,groovy.StaticImportParent,' +
                 'org.codehaus.groovy.transform.TestTransform,org.codehaus.groovy.classgen.asm.InstructionSequenceHelperClassTest,' +
                 'groovy.bugs.Groovy3511Bug,groovy.bugs.Groovy3135Bug,groovy.bugs.Groovy2556Bug,' +
@@ -109,7 +109,7 @@ ruleset {
         'UnusedVariable' {
             doNotApplyToClassNames = 'SourceBaseTestCase,SAXTest,groovy.ForLoopTest,groovy.bugs.Groovy3894Bug,' +
                 'ExpandoMetaClassTest,ExceptionTest,JSR223Test,' +
-                'groovy.util.GroovyShellTestCase,org.codehaus.groovy.tools.shell.ShellRunner,' +
+                'groovy.test.GroovyShellTestCase,org.codehaus.groovy.tools.shell.ShellRunner,' +
                 'groovy.bugs.Bytecode7Bug,groovy.mock.interceptor.HalfMockTest,' +
                 'groovy.mock.interceptor.MockSingleCallTest,groovy.mock.interceptor.StubSingleCallTest,' +
                 'groovy.operator.TernaryOperatorsTest,groovy.swing.SwingBuilderTableTest,' +
@@ -168,7 +168,10 @@ ruleset {
 
     ruleset('rulesets/logging.xml') {
         exclude 'SystemOutPrint'  // too many to worry about, review later
-        exclude 'SystemErrPrint'    // too many to worry about, review later
+        exclude 'SystemErrPrint'  // too many to worry about, review later
+        'Println' {
+            doNotApplyToFileNames='genArrayAccess.groovy,genArrayUtil.groovy,genDgmMath.groovy,genMathModification.groovy,'
+        }
     }
     ruleset('rulesets/braces.xml') {
         exclude 'ForStatementBraces' // for statements without braces seems acceptable in our coding standards
@@ -221,7 +224,6 @@ ruleset {
     }
     ruleset('rulesets/dry.xml') {
         exclude 'DuplicateNumberLiteral'    // too many to worry about, review later
-        exclude 'DuplicateStringLiteralRule'    // too many to worry about, review later
         exclude 'DuplicateStringLiteral'    // too many to worry about, review later
     }
     ruleset('rulesets/design.xml') {

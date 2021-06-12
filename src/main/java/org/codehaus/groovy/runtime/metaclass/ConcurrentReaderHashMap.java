@@ -356,6 +356,7 @@ public class ConcurrentReaderHashMap
    *
    * @return the number of key-value mappings in this map.
    */
+  @Override
   public synchronized int size() {
     return count;
   }
@@ -365,6 +366,7 @@ public class ConcurrentReaderHashMap
    *
    * @return <tt>true</tt> if this map contains no key-value mappings.
    */
+  @Override
   public synchronized boolean isEmpty() {
     return count == 0;
   }
@@ -381,6 +383,7 @@ public class ConcurrentReaderHashMap
    * @exception  NullPointerException  if the key is <code>null</code>.
    * @see     #put(Object, Object)
    */
+  @Override
   public Object get(Object key) {
 
     // throw null pointer exception if key null
@@ -449,6 +452,7 @@ public class ConcurrentReaderHashMap
    * @exception  NullPointerException  if the key is <code>null</code>.
    * @see     #contains(Object)
    */
+  @Override
   public boolean containsKey(Object key) {
     return get(key) != null;
   }
@@ -469,6 +473,7 @@ public class ConcurrentReaderHashMap
    * @see     Object#equals(Object)
    * @see     #get(Object)
    */
+  @Override
   public Object put(Object key, Object value) {
     if (value == null) 
       throw new NullPointerException();
@@ -572,42 +577,40 @@ public class ConcurrentReaderHashMap
      * reader thread that may be in the midst of traversing table
      * right now.)
      */
-    
-    for (int i = 0; i < oldCapacity ; i++) {
-      // We need to guarantee that any existing reads of old Map can
-      // proceed. So we cannot yet null out each bin.
-      Entry e = oldTable[i];
-      
-      if (e != null) {
-        int idx = e.hash & mask;
-        Entry next = e.next;
-        
-        //  Single node on list
-        if (next == null) 
-          newTable[idx] = e;
-        
-        else {    
-          // Reuse trailing consecutive sequence of all same bit
-          Entry lastRun = e;
-          int lastIdx = idx;
-          for (Entry last = next; last != null; last = last.next) {
-            int k = last.hash & mask;
-            if (k != lastIdx) {
-              lastIdx = k;
-              lastRun = last;
-            }
+
+      for (Entry e : oldTable) {
+          // We need to guarantee that any existing reads of old Map can
+          // proceed. So we cannot yet null out each bin.
+          if (e != null) {
+              int idx = e.hash & mask;
+              Entry next = e.next;
+
+              //  Single node on list
+              if (next == null)
+                  newTable[idx] = e;
+
+              else {
+                  // Reuse trailing consecutive sequence of all same bit
+                  Entry lastRun = e;
+                  int lastIdx = idx;
+                  for (Entry last = next; last != null; last = last.next) {
+                      int k = last.hash & mask;
+                      if (k != lastIdx) {
+                          lastIdx = k;
+                          lastRun = last;
+                      }
+                  }
+                  newTable[lastIdx] = lastRun;
+
+                  // Clone all remaining nodes
+                  for (Entry p = e; p != lastRun; p = p.next) {
+                      int k = p.hash & mask;
+                      newTable[k] = new Entry(p.hash, p.key,
+                              p.value, newTable[k]);
+                  }
+              }
           }
-          newTable[lastIdx] = lastRun;
-          
-          // Clone all remaining nodes
-          for (Entry p = e; p != lastRun; p = p.next) {
-            int k = p.hash & mask;
-            newTable[k] = new Entry(p.hash, p.key, 
-                                    p.value, newTable[k]);
-          }
-        }
       }
-    }
 
     table = newTable;
     recordModification(newTable);
@@ -623,6 +626,7 @@ public class ConcurrentReaderHashMap
    * @exception  NullPointerException  if the key is
    *               <code>null</code>.
    */
+  @Override
   public Object remove(Object key) {
     /*
       Find the entry, then 
@@ -712,16 +716,17 @@ public class ConcurrentReaderHashMap
    * specified value.  
    * @exception  NullPointerException  if the value is <code>null</code>.
    */
+  @Override
   public boolean containsValue(Object value) {
     if (value == null) throw new NullPointerException();
 
-    Entry tab[] = getTableForReading();
-    
-    for (int i = 0 ; i < tab.length; ++i) {
-      for (Entry e = tab[i] ; e != null ; e = e.next) 
-        if (value.equals(e.value))
-          return true;
-    }
+    Entry[] tab = getTableForReading();
+
+      for (Entry entry : tab) {
+          for (Entry e = entry; e != null; e = e.next)
+              if (value.equals(e.value))
+                  return true;
+      }
 
     return false;
   }
@@ -757,6 +762,7 @@ public class ConcurrentReaderHashMap
    *
    * @param t Mappings to be stored in this map.
    */
+  @Override
   public synchronized void putAll(Map t) {
     int n = t.size();
     if (n == 0)
@@ -765,14 +771,15 @@ public class ConcurrentReaderHashMap
     // Expand enough to hold at least n elements without resizing.
     // We can only resize table by factor of two at a time.
     // It is faster to rehash with fewer elements, so do it now.
-    while (n >= threshold)
+    while (n >= threshold) {
       rehash();
 
-    for (Iterator it = t.entrySet().iterator(); it.hasNext();) {
-      Map.Entry entry = (Map.Entry) it.next();
-      Object key = entry.getKey();
-      Object value = entry.getValue();
-      put(key, value);
+      for (Object o : t.entrySet()) {
+          Map.Entry entry = (Map.Entry) o;
+          Object key = entry.getKey();
+          Object value = entry.getValue();
+          put(key, value);
+      }
     }
   }
 
@@ -780,8 +787,9 @@ public class ConcurrentReaderHashMap
   /**
    * Removes all mappings from this map.
    */
+  @Override
   public synchronized void clear() {
-    Entry tab[] = table;
+    Entry[] tab = table;
     for (int i = 0; i < tab.length ; ++i) { 
 
       // must invalidate all to force concurrent get's to wait and then retry
@@ -801,6 +809,7 @@ public class ConcurrentReaderHashMap
    *
    * @return a shallow copy of this map.
    */
+  @Override
   public synchronized Object clone() {
     try { 
       ConcurrentReaderHashMap t = (ConcurrentReaderHashMap)super.clone();
@@ -845,37 +854,41 @@ public class ConcurrentReaderHashMap
    *
    * @return a set view of the keys contained in this map.
    */
+  @Override
   public Set keySet() {
     Set ks = keySet;
     return (ks != null)? ks : (keySet = new KeySet());
   }
   
   private class KeySet extends AbstractSet {
+    @Override
     public Iterator iterator() {
       return new KeyIterator();
     }
+    @Override
     public int size() {
       return ConcurrentReaderHashMap.this.size();
     }
+    @Override
     public boolean contains(Object o) {
       return ConcurrentReaderHashMap.this.containsKey(o);
     }
+    @Override
     public boolean remove(Object o) {
       return ConcurrentReaderHashMap.this.remove(o) != null;
     }
+    @Override
     public void clear() {
       ConcurrentReaderHashMap.this.clear();
     }
+    @Override
     public Object[] toArray() {
-      Collection c = new ArrayList();
-      for (Iterator i = iterator(); i.hasNext(); )
-          c.add(i.next());
+      Collection c = new ArrayList(this);
       return c.toArray();
     }
+    @Override
     public Object[] toArray(Object[] a) {
-      Collection c = new ArrayList();
-      for (Iterator i = iterator(); i.hasNext(); )
-          c.add(i.next());
+      Collection c = new ArrayList(this);
       return c.toArray(a);
     }
   }
@@ -891,34 +904,37 @@ public class ConcurrentReaderHashMap
    *
    * @return a collection view of the values contained in this map.
    */
+  @Override
   public Collection values() {
     Collection vs = values;
     return (vs != null)? vs : (values = new Values());
   }
   
   private class Values extends AbstractCollection {
+    @Override
     public Iterator iterator() {
       return new ValueIterator();
     }
+    @Override
     public int size() {
       return ConcurrentReaderHashMap.this.size();
     }
+    @Override
     public boolean contains(Object o) {
       return ConcurrentReaderHashMap.this.containsValue(o);
     }
+    @Override
     public void clear() {
       ConcurrentReaderHashMap.this.clear();
     }
+    @Override
     public Object[] toArray() {
-      Collection c = new ArrayList();
-      for (Iterator i = iterator(); i.hasNext(); )
-          c.add(i.next());
+      Collection c = new ArrayList(this);
       return c.toArray();
     }
+    @Override
     public Object[] toArray(Object[] a) {
-      Collection c = new ArrayList();
-      for (Iterator i = iterator(); i.hasNext(); )
-          c.add(i.next());
+      Collection c = new ArrayList(this);
       return c.toArray(a);
     }
   }
@@ -935,15 +951,18 @@ public class ConcurrentReaderHashMap
    *
    * @return a collection view of the mappings contained in this map.
    */
+  @Override
   public Set entrySet() {
     Set es = entrySet;
     return (es != null) ? es : (entrySet = new EntrySet());
   }
 
   private class EntrySet extends AbstractSet {
+    @Override
     public Iterator iterator() {
       return new HashIterator();
     }
+    @Override
     public boolean contains(Object o) {
       if (!(o instanceof Map.Entry))
         return false;
@@ -951,27 +970,28 @@ public class ConcurrentReaderHashMap
       Object v = ConcurrentReaderHashMap.this.get(entry.getKey());
       return v != null && v.equals(entry.getValue());
     }
+    @Override
     public boolean remove(Object o) {
       if (!(o instanceof Map.Entry))
         return false;
       return ConcurrentReaderHashMap.this.findAndRemoveEntry((Map.Entry)o);
     }
+    @Override
     public int size() {
       return ConcurrentReaderHashMap.this.size();
     }
+    @Override
     public void clear() {
       ConcurrentReaderHashMap.this.clear();
     }
+    @Override
     public Object[] toArray() {
-      Collection c = new ArrayList();
-      for (Iterator i = iterator(); i.hasNext(); )
-          c.add(i.next());
+      Collection c = new ArrayList(this);
       return c.toArray();
     }
+    @Override
     public Object[] toArray(Object[] a) {
-      Collection c = new ArrayList();
-      for (Iterator i = iterator(); i.hasNext(); )
-          c.add(i.next());
+      Collection c = new ArrayList(this);
       return c.toArray(a);
     }
   }
@@ -1044,6 +1064,7 @@ public class ConcurrentReaderHashMap
 
     // Map.Entry Ops 
 
+    @Override
     public Object getKey() {
       return key;
     }
@@ -1060,6 +1081,7 @@ public class ConcurrentReaderHashMap
      * @return     the current value, or null if the entry has been 
      * detectably removed.
      **/
+    @Override
     public Object getValue() {
       return value; 
     }
@@ -1084,6 +1106,7 @@ public class ConcurrentReaderHashMap
      * @exception  NullPointerException  if the value is <code>null</code>.
      * 
      **/
+    @Override
     public Object setValue(Object value) {
       if (value == null)
         throw new NullPointerException();
@@ -1092,6 +1115,7 @@ public class ConcurrentReaderHashMap
       return oldValue;
     }
 
+    @Override
     public boolean equals(Object o) {
       if (!(o instanceof Map.Entry))
         return false;
@@ -1099,10 +1123,12 @@ public class ConcurrentReaderHashMap
       return (key.equals(e.getKey()) && value.equals(e.getValue()));
     }
     
+    @Override
     public int hashCode() {
       return  key.hashCode() ^ value.hashCode();
     }
     
+    @Override
     public String toString() {
       return key + "=" + value;
     }
@@ -1122,10 +1148,13 @@ public class ConcurrentReaderHashMap
       index = tab.length - 1;
     }
 
+    @Override
     public boolean hasMoreElements() { return hasNext(); }
+    @Override
     public Object nextElement() { return next(); }
 
 
+    @Override
     public boolean hasNext() {
 
       /*
@@ -1160,6 +1189,7 @@ public class ConcurrentReaderHashMap
 
     protected Object returnValueOfNext() { return entry; }
 
+    @Override
     public Object next() {
       if (currentKey == null && !hasNext())
         throw new NoSuchElementException();
@@ -1171,6 +1201,7 @@ public class ConcurrentReaderHashMap
       return result;
     }
 
+    @Override
     public void remove() {
       if (lastReturned == null)
         throw new IllegalStateException();
@@ -1182,10 +1213,12 @@ public class ConcurrentReaderHashMap
 
 
   protected class KeyIterator extends HashIterator {
+    @Override
     protected Object returnValueOfNext() { return currentKey; }
   }
   
   protected class ValueIterator extends HashIterator {
+    @Override
     protected Object returnValueOfNext() { return currentValue; }
   }
   

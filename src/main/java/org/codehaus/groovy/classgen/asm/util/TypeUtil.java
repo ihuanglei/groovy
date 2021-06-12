@@ -96,7 +96,7 @@ public abstract class TypeUtil {
     }
 
     public static boolean isPrimitiveType(ClassNode type) {
-        return PRIMITIVE_TYPE_TO_DESCRIPTION_MAP.containsKey(type);
+        return PRIMITIVE_TYPE_TO_DESCRIPTION_MAP.containsKey(type.redirect());
     }
 
     public static String getDescriptionByType(ClassNode type) {
@@ -114,7 +114,7 @@ public abstract class TypeUtil {
                 arrayDescription.append("[");
             }
 
-            ClassNode componentType = arrayInfo.getFirst();
+            ClassNode componentType = arrayInfo.getV1();
             return arrayDescription.append(getDescriptionByType(componentType)).toString();
         }
 

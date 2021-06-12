@@ -18,6 +18,9 @@
  */
 package groovy.yaml
 
+
+import groovy.test.GroovyTestCase
+
 class YamlParserTest extends GroovyTestCase {
 
     void testParse() {
@@ -30,7 +33,6 @@ dist: trusty
 
 matrix:
   include:
-#    - jdk: oraclejdk11
     - jdk: openjdk10
     - jdk: oraclejdk9
     - jdk: oraclejdk8
@@ -75,5 +77,49 @@ before_script:
         assert 'http://example.org' == yaml.records.car.homepage
         assert 'speed' == yaml.records.car.record.type
         assert 'production pickup truck with speed of 271kph' == yaml.records.car.record.description
+    }
+
+
+    void testParsePath() {
+        def file = File.createTempFile('test','yml')
+        file.deleteOnExit()
+        file.text = '''
+language: groovy
+sudo: required
+dist: trusty
+
+matrix:
+  include:
+    - jdk: openjdk10
+    - jdk: oraclejdk9
+    - jdk: oraclejdk8
+'''
+
+        def ys = new YamlSlurper()
+        def yaml = ys.parse(file.toPath())
+
+        // check
+        assert 'groovy' == yaml.language
+        assert 'required' == yaml.sudo
+        assert 'trusty' == yaml.dist
+        assert ['openjdk10', 'oraclejdk9', 'oraclejdk8'] ==  yaml.matrix.include.jdk
+
+    }
+
+    void testParseMultiDocs() {
+        def ys = new YamlSlurper()
+        def yaml = ys.parseText '''\
+---
+language: groovy
+version: 4
+---
+language: java
+version: 8
+        '''
+
+        assert 'groovy' == yaml[0].language
+        assert 4 == yaml[0].version
+        assert 'java' == yaml[1].language
+        assert 8 == yaml[1].version
     }
 }

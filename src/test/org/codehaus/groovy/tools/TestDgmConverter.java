@@ -28,21 +28,16 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.Comparator;
 
 public class TestDgmConverter extends TestCase {
 
-    private static final String REFERENCE_CLASS = "/org/codehaus/groovy/runtime/DefaultGroovyMethods.class";
+    private static final String REFERENCE_CLASS = "/org/codehaus/groovy/runtime/dgm$0.class";
 
     public void testConverter () throws URISyntaxException {
         File dgmClassDirectory = new File(TestDgmConverter.class.getResource(REFERENCE_CLASS).toURI()).getParentFile();
 
         final File[] files = dgmClassDirectory.listFiles();
-        Arrays.sort(files, new Comparator<File>() {
-            public int compare(final File o1, final File o2) {
-                return String.CASE_INSENSITIVE_ORDER.compare(o1.getName(), o2.getName());
-            }
-        });
+        Arrays.sort(files, (o1, o2) -> String.CASE_INSENSITIVE_ORDER.compare(o1.getName(), o2.getName()));
         for (int i = 0; i < files.length; i++) {
             File file = files[i];
             final String name = file.getName();
@@ -56,11 +51,7 @@ public class TestDgmConverter extends TestCase {
                     final MetaMethod metaMethod = (MetaMethod) constructor.newInstance(null,null, null, null);
                 } catch (ClassNotFoundException e) {
                     fail("Failed to load " + className);
-                } catch (IllegalAccessException e) {
-                    fail("Failed to instantiate " + className);
-                } catch (InstantiationException e) {
-                    fail("Failed to instantiate " + className);
-                } catch (InvocationTargetException e) {
+                } catch (IllegalAccessException | InvocationTargetException | InstantiationException e) {
                     fail("Failed to instantiate " + className);
                 }
             }

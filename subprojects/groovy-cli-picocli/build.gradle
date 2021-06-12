@@ -16,10 +16,13 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+plugins {
+    id 'org.apache.groovy-library'
+}
+
 dependencies {
-    compile rootProject
-    compile "info.picocli:picocli:$picocliVersion"
-    testCompile rootProject.sourceSets.test.output
-    testCompile project(':groovy-test')
-    testCompile project(':groovy-dateutil')
+    api rootProject   // CliBuilder uses Option...
+    implementation "info.picocli:picocli:${versions.picocli}"
+    testImplementation project(':groovy-test')
+    testImplementation project(':groovy-dateutil')
 }

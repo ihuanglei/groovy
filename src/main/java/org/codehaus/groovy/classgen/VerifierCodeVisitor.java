@@ -29,26 +29,27 @@ import org.codehaus.groovy.ast.expr.MapEntryExpression;
 import org.codehaus.groovy.ast.expr.VariableExpression;
 import org.codehaus.groovy.ast.stmt.ForStatement;
 import org.codehaus.groovy.syntax.RuntimeParserException;
-import org.objectweb.asm.Opcodes;
 
 /**
  * Performs various checks on code inside methods and constructors
  * including checking for valid field, variables names etc. that
  * would otherwise lead to invalid code.
  */
-public class VerifierCodeVisitor extends CodeVisitorSupport implements Opcodes {
+public class VerifierCodeVisitor extends CodeVisitorSupport {
 
-    private final Verifier verifier;
+    private final ClassNode classNode;
 
-    VerifierCodeVisitor(Verifier verifier) {
-        this.verifier = verifier;
+    public VerifierCodeVisitor(ClassNode classNode) {
+        this.classNode = classNode;
     }
 
+    @Override
     public void visitForLoop(ForStatement expression) {
         assertValidIdentifier(expression.getVariable().getName(), "for loop variable name", expression);
         super.visitForLoop(expression);
     }
 
+    @Override
     public void visitFieldExpression(FieldExpression expression) {
         if (!expression.getField().isSynthetic()) {
             assertValidIdentifier(expression.getFieldName(), "field name", expression);
@@ -56,11 +57,13 @@ public class VerifierCodeVisitor extends CodeVisitorSupport implements Opcodes {
         super.visitFieldExpression(expression);
     }
 
+    @Override
     public void visitVariableExpression(VariableExpression expression) {
         assertValidIdentifier(expression.getName(), "variable name", expression);
         super.visitVariableExpression(expression);
     }
 
+    @Override
     public void visitListExpression(ListExpression expression) {
         for (Expression element : expression.getExpressions()) {
             if (element instanceof MapEntryExpression) {
@@ -70,9 +73,10 @@ public class VerifierCodeVisitor extends CodeVisitorSupport implements Opcodes {
         super.visitListExpression(expression);
     }
 
+    @Override
     public void visitConstructorCallExpression(ConstructorCallExpression call) {
         ClassNode callType = call.getType();
-        if (callType.isEnum() && !callType.equals(verifier.getClassNode())) {
+        if (callType.isEnum() && !callType.equals(classNode)) {
             throw new RuntimeParserException("Enum constructor calls are only allowed inside the enum class", call);
         }
     }

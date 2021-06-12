@@ -25,32 +25,45 @@ import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
-public class CachedField extends MetaProperty {
-    public final Field field;
+import static org.codehaus.groovy.reflection.ReflectionUtils.makeAccessibleInPrivilegedAction;
 
-    public CachedField(Field field) {
-        super (field.getName(), field.getType());
+public class CachedField extends MetaProperty {
+    private final Field field;
+
+    public CachedField(final Field field) {
+        super(field.getName(), field.getType());
         this.field = field;
     }
 
-    public boolean isStatic() {
-        return Modifier.isStatic(getModifiers());
+    public Field getCachedField() {
+        makeAccessibleIfNecessary();
+        return field;
+    }
+
+    public Class getDeclaringClass() {
+        return field.getDeclaringClass();
+    }
+
+    @Override
+    public int getModifiers() {
+        return field.getModifiers();
     }
 
     public boolean isFinal() {
         return Modifier.isFinal(getModifiers());
     }
 
-    public int getModifiers() {
-        return field.getModifiers();
+    public boolean isStatic() {
+        return Modifier.isStatic(getModifiers());
     }
 
     /**
      * @return the property of the given object
      * @throws RuntimeException if the property could not be evaluated
      */
+    @Override
     public Object getProperty(final Object object) {
-        AccessPermissionChecker.checkAccessPermission(field);
+        makeAccessibleIfNecessary();
         try {
             return field.get(object);
         } catch (IllegalAccessException e) {
@@ -65,17 +78,26 @@ public class CachedField extends MetaProperty {
      * @param newValue the new value of the property
      * @throws RuntimeException if the property could not be set
      */
-    public void setProperty(final Object object, Object newValue) {
-        AccessPermissionChecker.checkAccessPermission(field);
-        final Object goalValue = DefaultTypeTransformation.castToType(newValue, field.getType());
-
+    @Override
+    public void setProperty(final Object object, final Object newValue) {
         if (isFinal()) {
             throw new GroovyRuntimeException("Cannot set the property '" + name + "' because the backing field is final.");
         }
+        makeAccessibleIfNecessary();
+        Object goalValue = DefaultTypeTransformation.castToType(newValue, field.getType());
         try {
             field.set(object, goalValue);
-        } catch (IllegalAccessException ex) {
-            throw new GroovyRuntimeException("Cannot set the property '" + name + "'.", ex);
+        } catch (IllegalAccessException e) {
+            throw new GroovyRuntimeException("Cannot set the property '" + name + "'.", e);
         }
+    }
+
+    private transient boolean madeAccessible;
+    private void makeAccessibleIfNecessary() {
+        if (!madeAccessible) {
+            makeAccessibleInPrivilegedAction(field);
+            madeAccessible = true;
+        }
+        AccessPermissionChecker.checkAccessPermission(field);
     }
 }

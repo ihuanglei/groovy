@@ -1,3 +1,5 @@
+import groovy.test.GroovyTestCase
+
 /*
  *  Licensed to the Apache Software Foundation (ASF) under one
  *  or more contributor license agreements.  See the NOTICE file
@@ -401,8 +403,10 @@ import groovy.transform.Immutable
 
 @Immutable
 class SlowHashCode {
+    static final SLEEP_PERIOD = 500
+
     int hashCode() {
-        sleep 100
+        sleep SLEEP_PERIOD
         127
     }
 }
@@ -418,7 +422,7 @@ p.hashCode()
 
 def start = System.currentTimeMillis()
 p.hashCode()
-assert System.currentTimeMillis() - start < 100
+assert System.currentTimeMillis() - start < SlowHashCode.SLEEP_PERIOD
 // end::equalshashcode_example_cache[]
 '''
     }
@@ -1673,5 +1677,25 @@ class EmptyIterator implements java.util.Iterator<String> {
 // end::autoimplement_code_equiv[]
 */
         '''
+    }
+
+    void testNullCheck() {
+        assertScript '''
+ import groovy.transform.NullCheck
+ import static groovy.test.GroovyAssert.shouldFail
+
+// tag::nullcheck[]
+@NullCheck
+String longerOf(String first, String second) {
+    first.size() >= second.size() ? first : second
+}
+
+assert longerOf('cat', 'canary') == 'canary'
+def ex = shouldFail(IllegalArgumentException) {
+    longerOf('cat', null)
+}
+assert ex.message == 'second cannot be null'
+// end::nullcheck[]
+'''
     }
 }

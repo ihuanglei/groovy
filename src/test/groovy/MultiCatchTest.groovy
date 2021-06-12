@@ -18,9 +18,9 @@
  */
 package groovy
 
+import groovy.test.GroovyTestCase
 import org.codehaus.groovy.control.CompilerConfiguration
-
-import static org.codehaus.groovy.control.ParserVersion.V_2
+import org.codehaus.groovy.control.ParserPluginFactory
 
 /**
  * Test for the multi-catch exception from JDK 7 (Project Coin)
@@ -119,18 +119,5 @@ class MultiCatchTest extends GroovyTestCase {
             catched = true
         }
         assert catched
-    }
-
-    // GROOVY-8238
-    void testMultipleCatchGroovyAndJavaExceptions() {
-        def cc = new CompilerConfiguration(parserVersion: V_2)
-        new GroovyShell(cc).evaluate '''
-        import groovy.cli.CliBuilderException
-        try {
-            throw new RuntimeException('boom')
-        } catch ( RuntimeException | CliBuilderException e ) {
-            assert e.message == 'boom'
-        }
-        '''
     }
 }

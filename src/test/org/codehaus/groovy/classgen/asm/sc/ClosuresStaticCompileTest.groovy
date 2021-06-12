@@ -28,12 +28,13 @@ class ClosuresStaticCompileTest extends ClosuresSTCTest implements StaticCompila
     // GROOVY-5584
     void testEachOnMapClosure() {
         assertScript '''
-                def test() {
-                    def result = ""
-                    [a:1, b:3].each { key, value -> result += "$key$value" }
-                    assert result == "a1b3"
-                }
-                test()'''
+            def test() {
+                def result = ""
+                [a:1, b:3].each { key, value -> result += "$key$value" }
+                assert result == "a1b3"
+            }
+            test()
+        '''
     }
 
     // GROOVY-5811
@@ -65,48 +66,77 @@ class ClosuresStaticCompileTest extends ClosuresSTCTest implements StaticCompila
     // GROOVY-6522
     void testShouldCallClosure() {
         assertScript '''
-class Sample {
+            class Sample {
+                Closure formatFirstName, formatLastName
 
-    Closure formatFirstName
-    Closure formatLastName
-
-    void doStuff (String fname, String lname, Closure callback) {
-        formatFirstName(fname) { String fnameError, String formattedFname ->
-            formatLastName(lname) { String lnameError, String formattedLname ->
-                String errors = "${fnameError ? "${fnameError}, " : ''}${lnameError ?: ''}"
-                callback(errors, formattedFname, formattedLname)
+                void doStuff (String fname, String lname, Closure callback) {
+                    formatFirstName(fname) { String fnameError, String formattedFname ->
+                        formatLastName(lname) { String lnameError, String formattedLname ->
+                            String errors = "${fnameError ? "${fnameError}, " : ''}${lnameError ?: ''}"
+                            callback(errors, formattedFname, formattedLname)
+                        }
+                    }
+                }
             }
-        }
+
+            Closure ffn = { String fname, Closure callback ->
+                String firstInitial = fname?.substring(0,1)
+                if (!firstInitial)
+                    callback('invalid first name', null)
+                else
+                    callback(null, firstInitial.toLowerCase())
+            }
+
+            Closure fln = { String lname, Closure callback ->
+                String lastPrefix = lname?.size() > 2 ? lname.substring(0,3) : null
+                if (!lastPrefix)
+                    callback('invalid last name', null)
+                else
+                    callback(null, lastPrefix.toLowerCase())
+            }
+
+            Sample sample = new Sample(formatFirstName: ffn, formatLastName: fln)
+
+            sample.doStuff('John', 'Doe') { String errors, String formattedFname, String formattedLname ->
+                if (errors)
+                    println errors
+                else
+                    println "${formattedFname}.${formattedLname}"
+            }
+        '''
     }
 
-}
+    void testMethodVersusPropertyOnCompoundAssignmentTarget() {
+        assertScript '''
+            import org.codehaus.groovy.ast.expr.*
+            import org.codehaus.groovy.ast.stmt.*
 
-Closure ffn = { String fname, Closure callback ->
-    String firstInitial = fname?.substring(0,1)
+            class Pogo {
+                String string = ''
+                void setString(String string) {
+                    this.string = string
+                }
+            }
 
-    if (!firstInitial)
-        callback('invalid first name', null)
-    else
-        callback(null, firstInitial.toLowerCase())
-}
+            @ASTTest(phase=INSTRUCTION_SELECTION, value={
+                node = node.code.statements[0].expression
+                assert node instanceof MethodCallExpression
 
-Closure fln = { String lname, Closure callback ->
-    String lastPrefix = lname?.size() > 2 ? lname.substring(0,3) : null
+                node = node.arguments.expressions[0].code.statements[0].expression
+                assert node instanceof BinaryExpression
 
-    if (!lastPrefix)
-        callback('invalid last name', null)
-    else
-        callback(null, lastPrefix.toLowerCase())
-}
+                assert node.leftExpression instanceof PropertyExpression
+                def target = node.leftExpression.getNodeMetaData(DIRECT_METHOD_CALL_TARGET)
 
-Sample sample = new Sample(formatFirstName: ffn, formatLastName: fln)
+                assert target != null && target.name == 'setString'
+            })
+            void test(Pogo pogo) {
+                pogo.with {
+                    string += 'x'
+                }
+            }
 
-sample.doStuff('John', 'Doe') { String errors, String formattedFname, String formattedLname ->
-    if (errors)
-        println errors
-    else
-        println "${formattedFname}.${formattedLname}"
-}'''
+            test(new Pogo())
+        '''
     }
 }
-

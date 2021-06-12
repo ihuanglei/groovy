@@ -18,12 +18,15 @@
  */
 package groovy.servlet
 
+import groovy.test.GroovyTestCase
+import groovy.xml.MarkupBuilder
+
 import javax.servlet.ServletContext
 import javax.servlet.ServletOutputStream
+import javax.servlet.WriteListener
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import javax.servlet.http.HttpSession
-import groovy.xml.MarkupBuilder
 
 /**
  * This test case tests the ServletBinding class.
@@ -255,5 +258,12 @@ class ServletBindingTest extends GroovyTestCase {
  * Test specific sub class to stub out the ServletOutputStream class.
  */
 class OutputStreamStub extends ServletOutputStream {
+    @Override
     void write(int x) { }
+
+    @Override
+    boolean isReady() { return false }
+
+    @Override
+    void setWriteListener(WriteListener writeListener) {}
 }

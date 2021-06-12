@@ -18,6 +18,8 @@
  */
 package groovy
 
+import groovy.test.GroovyTestCase
+
 import java.awt.Dimension
 import java.nio.CharBuffer
 import java.util.concurrent.LinkedBlockingQueue
@@ -97,9 +99,14 @@ class GroovyMethodsTest extends GroovyTestCase {
     void testAsCoercionInterface() {
         def letters = ['a', 'b', 'c']
         def ol = new ObserverLike()
-        def o = new Observable()
+        def o = new Observable() {
+            @Override
+            synchronized void setChanged() {
+                super.setChanged()
+            }
+        }
         o.addObserver(ol as Observer) // addObserver takes Observer as param
-        letters.each{ o.changed = true; o.notifyObservers(it) }
+        letters.each{ o.setChanged(); o.notifyObservers(it) }
         assert ol.observed == letters
     }
 
@@ -288,6 +295,9 @@ class GroovyMethodsTest extends GroovyTestCase {
         def list = ['a', 'b', 'c']
         assert list[1..2] == ['b', 'c']
         assert list[0..<0] == []
+        assert list[0<..0] == []
+        assert list[0<..<0] == []
+        assert list[0<..<1] == []
     }
 
     void testCharSequenceGetAt() {

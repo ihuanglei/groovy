@@ -18,37 +18,112 @@
  */
 package org.codehaus.groovy.runtime;
 
-import java.util.HashMap;
-
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyCodeSource;
+import groovy.lang.GroovyShell;
 import groovy.lang.Script;
-import junit.framework.TestCase;
+import org.junit.Test;
 
-public class InvokerHelperTest extends TestCase {
-    private HashMap bindingVariables;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
-    protected void setUp() throws Exception {
-        bindingVariables = new HashMap();
-        bindingVariables.put("name", "hans");
-    }
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 
+public final class InvokerHelperTest {
+
+    private final Map<String, Object> variables = new HashMap<>();
+
+    @Test
     public void testCreateScriptWithNullClass() {
-        Script script = InvokerHelper.createScript(null, new Binding(bindingVariables));
-        assertEquals(bindingVariables, script.getBinding().getVariables());
+        Script script = InvokerHelper.createScript(null, new Binding(variables));
+
+        assertSame(variables, script.getBinding().getVariables());
     }
 
-    public void testCreateScriptWithScriptClass() {
-        GroovyClassLoader classLoader = new GroovyClassLoader();
-        String controlProperty = "text";
-        String controlValue = "I am a script";
-        String code = controlProperty + " = '" + controlValue + "'";
-        GroovyCodeSource codeSource = new GroovyCodeSource(code, "testscript", "/groovy/shell");
-        Class scriptClass = classLoader.parseClass(codeSource, false);
-        Script script = InvokerHelper.createScript(scriptClass, new Binding(bindingVariables));
-        assertEquals(bindingVariables, script.getBinding().getVariables());
-        script.run();
-        assertEquals(controlValue, script.getProperty(controlProperty));
+    @Test
+    public void testCreateScriptWithScriptClass() throws Exception {
+        try (GroovyClassLoader classLoader = new GroovyClassLoader()) {
+            String controlProperty = "text", controlValue = "I am a script";
+            Class<?> scriptClass = classLoader.parseClass(new GroovyCodeSource(
+                    controlProperty + " = '" + controlValue + "'", "testscript", "/groovy/shell"), false);
+
+            Script script = InvokerHelper.createScript(scriptClass, new Binding(variables));
+
+            assertSame(variables, script.getBinding().getVariables());
+
+            script.run();
+
+            assertEquals(controlValue, script.getProperty(controlProperty));
+        }
+    }
+
+    @Test // GROOVY-5802
+    public void testBindingVariablesSetPropertiesInSingleClassScripts() {
+        variables.put("first", "John");
+        variables.put("last", "Smith");
+
+        PrintStream sysout = System.out;
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            System.setOut(new PrintStream(baos));
+            String source =
+                "class Person {\n" +
+                "    static String first, last, unused\n" +
+                "    static main(args) { print \"$first $last\" }\n" +
+                "}\n";
+            new GroovyShell(new Binding(variables)).parse(source).run();
+
+            assertEquals("John Smith", baos.toString());
+        } finally {
+            System.setOut(sysout);
+        }
+    }
+
+    @Test // GROOVY-5802
+    public void testInvokerHelperNotConfusedByScriptVariables() {
+        variables.put("_", Collections.emptyList());
+
+        InvokerHelper.createScript(MyList5802.class, new Binding(variables));
+    }
+
+    @Test // GROOVY-5802
+    public void testMissingVariablesForSingleListClassScripts() {
+        variables.put("x", Collections.emptyList());
+
+        InvokerHelper.createScript(MyList5802.class, new Binding(variables));
+    }
+
+    @Test
+    public void testInitialCapacity() {
+        assertEquals(16, InvokerHelper.initialCapacity(0));
+        assertEquals( 2, InvokerHelper.initialCapacity(1));
+        assertEquals( 4, InvokerHelper.initialCapacity(2));
+        assertEquals( 4, InvokerHelper.initialCapacity(3));
+        assertEquals( 8, InvokerHelper.initialCapacity(4));
+        assertEquals( 8, InvokerHelper.initialCapacity(5));
+        assertEquals( 8, InvokerHelper.initialCapacity(6));
+        assertEquals( 8, InvokerHelper.initialCapacity(7));
+        assertEquals(16, InvokerHelper.initialCapacity(8));
+        assertEquals(16, InvokerHelper.initialCapacity(9));
+        assertEquals(16, InvokerHelper.initialCapacity(10));
+        assertEquals(16, InvokerHelper.initialCapacity(11));
+        assertEquals(16, InvokerHelper.initialCapacity(12));
+        assertEquals(16, InvokerHelper.initialCapacity(13));
+        assertEquals(16, InvokerHelper.initialCapacity(14));
+        assertEquals(16, InvokerHelper.initialCapacity(15));
+        assertEquals(32, InvokerHelper.initialCapacity(16));
+        assertEquals(32, InvokerHelper.initialCapacity(17));
+    }
+
+    //--------------------------------------------------------------------------
+
+    private static class MyList5802 extends ArrayList<Object> {
+        private static final long serialVersionUID = 0;
     }
 }

@@ -20,9 +20,8 @@ package org.codehaus.groovy.ast.expr;
 
 import org.codehaus.groovy.ast.GroovyCodeVisitor;
 
-
 /**
- * Represents an entry inside a map expression such as 1 : 2.
+ * Represents an entry inside a map expression such as {@code 1 : 2} or {@code 'foo' : 'bar'}.
  */
 public class MapEntryExpression extends Expression {
     private Expression keyExpression;
@@ -33,17 +32,20 @@ public class MapEntryExpression extends Expression {
         this.valueExpression = valueExpression;
     }
 
+    @Override
     public void visit(GroovyCodeVisitor visitor) {
         visitor.visitMapEntryExpression(this);
     }
 
+    @Override
     public Expression transformExpression(ExpressionTransformer transformer) {
         Expression ret = new MapEntryExpression(transformer.transform(keyExpression), transformer.transform(valueExpression));
         ret.setSourcePosition(this);
         ret.copyNodeMetaData(this);
-        return ret;        
+        return ret;
     }
 
+    @Override
     public String toString() {
         return super.toString() + "(key: " + keyExpression + ", value: " + valueExpression + ")";
     }

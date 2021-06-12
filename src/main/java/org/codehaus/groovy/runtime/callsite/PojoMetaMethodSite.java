@@ -26,6 +26,8 @@ import org.codehaus.groovy.runtime.GroovyCategorySupport;
 import org.codehaus.groovy.runtime.MetaClassHelper;
 import org.codehaus.groovy.runtime.NullObject;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
+import org.codehaus.groovy.vmplugin.VMPlugin;
+import org.codehaus.groovy.vmplugin.VMPluginFactory;
 
 import java.lang.reflect.Method;
 
@@ -35,10 +37,11 @@ import java.lang.reflect.Method;
  *   method - cached
 */
 public class PojoMetaMethodSite extends PlainObjectMetaMethodSite {
+    private static final VMPlugin VM_PLUGIN = VMPluginFactory.getPlugin();
 
     protected final int version;
 
-    public PojoMetaMethodSite(CallSite site, MetaClassImpl metaClass, MetaMethod metaMethod, Class params[]) {
+    public PojoMetaMethodSite(CallSite site, MetaClassImpl metaClass, MetaMethod metaMethod, Class[] params) {
         super(site, metaClass, metaMethod, params);
         version = metaClass.getVersion();
     }
@@ -48,6 +51,7 @@ public class PojoMetaMethodSite extends PlainObjectMetaMethodSite {
         return metaMethod.doMethodInvoke(receiver,  args);
     }
 
+    @Override
     public Object call(Object receiver, Object[] args) throws Throwable {
         if(checkCall(receiver, args))
           return invoke(receiver,args);
@@ -178,10 +182,11 @@ public class PojoMetaMethodSite extends PlainObjectMetaMethodSite {
         final Method reflect;
 
         public PojoCachedMethodSite(CallSite site, MetaClassImpl metaClass, MetaMethod metaMethod, Class[] params) {
-            super(site, metaClass, metaMethod, params);
-            reflect = ((CachedMethod)metaMethod).setAccessible();
+            super(site, metaClass, VM_PLUGIN.transformMetaMethod(metaClass, metaMethod), params);
+            reflect = ((CachedMethod) super.metaMethod).setAccessible();
         }
 
+        @Override
         public Object invoke(Object receiver, Object[] args) throws Throwable {
             MetaClassHelper.unwrap(args);
             args = metaMethod.coerceArgumentsToClasses(args);
@@ -191,10 +196,11 @@ public class PojoMetaMethodSite extends PlainObjectMetaMethodSite {
 
     public static class PojoCachedMethodSiteNoUnwrap extends PojoCachedMethodSite {
 
-        public PojoCachedMethodSiteNoUnwrap(CallSite site, MetaClassImpl metaClass, MetaMethod metaMethod, Class params[]) {
+        public PojoCachedMethodSiteNoUnwrap(CallSite site, MetaClassImpl metaClass, MetaMethod metaMethod, Class[] params) {
             super(site, metaClass, metaMethod, params);
         }
 
+        @Override
         public final Object invoke(Object receiver, Object[] args) throws Throwable {
             args = metaMethod.coerceArgumentsToClasses(args);
             return doInvoke(receiver, args, reflect);
@@ -203,10 +209,11 @@ public class PojoMetaMethodSite extends PlainObjectMetaMethodSite {
 
     public static class PojoCachedMethodSiteNoUnwrapNoCoerce extends PojoCachedMethodSite {
 
-        public PojoCachedMethodSiteNoUnwrapNoCoerce(CallSite site, MetaClassImpl metaClass, MetaMethod metaMethod, Class params[]) {
+        public PojoCachedMethodSiteNoUnwrapNoCoerce(CallSite site, MetaClassImpl metaClass, MetaMethod metaMethod, Class[] params) {
             super(site, metaClass, metaMethod, params);
         }
 
+        @Override
         public final Object invoke(Object receiver, Object[] args) throws Throwable {
             return doInvoke(receiver, args, reflect);
         }
@@ -217,10 +224,11 @@ public class PojoMetaMethodSite extends PlainObjectMetaMethodSite {
      */
     public static class PojoMetaMethodSiteNoUnwrap extends PojoMetaMethodSite {
 
-        public PojoMetaMethodSiteNoUnwrap(CallSite site, MetaClassImpl metaClass, MetaMethod metaMethod, Class params[]) {
+        public PojoMetaMethodSiteNoUnwrap(CallSite site, MetaClassImpl metaClass, MetaMethod metaMethod, Class[] params) {
             super(site, metaClass, metaMethod, params);
         }
 
+        @Override
         public final Object invoke(Object receiver, Object[] args) throws Throwable {
             try {
                 return metaMethod.doMethodInvoke(receiver,  args);
@@ -235,10 +243,11 @@ public class PojoMetaMethodSite extends PlainObjectMetaMethodSite {
      */
     public static class PojoMetaMethodSiteNoUnwrapNoCoerce extends PojoMetaMethodSite {
 
-        public PojoMetaMethodSiteNoUnwrapNoCoerce(CallSite site, MetaClassImpl metaClass, MetaMethod metaMethod, Class params[]) {
+        public PojoMetaMethodSiteNoUnwrapNoCoerce(CallSite site, MetaClassImpl metaClass, MetaMethod metaMethod, Class[] params) {
             super(site, metaClass, metaMethod, params);
         }
 
+        @Override
         public final Object invoke(Object receiver, Object[] args) throws Throwable {
             try {
                 return metaMethod.invoke(receiver,  args);

@@ -18,10 +18,16 @@
  */
 package org.codehaus.groovy.classgen.asm.sc
 
-import org.codehaus.groovy.classgen.asm.AbstractBytecodeTestCase
+import groovy.transform.CompileStatic
+import org.junit.Test
 
-class StaticCompileFlowTypingTest extends AbstractBytecodeTestCase {
-    void testFlowTyping() {
+import static groovy.test.GroovyAssert.assertScript
+
+@CompileStatic
+final class StaticCompileFlowTypingTest {
+
+    @Test
+    void testFlowTyping1() {
         assertScript '''
             @groovy.transform.CompileStatic
             Object m() {
@@ -36,6 +42,82 @@ class StaticCompileFlowTypingTest extends AbstractBytecodeTestCase {
         '''
     }
 
+    @Test // GROOVY-9344
+    void testFlowTyping2() {
+        assertScript '''
+            class A {}
+            class B {}
+
+            @groovy.transform.CompileStatic
+            String m() {
+                def x = new A()
+                def c = { ->
+                    x = new B()
+                    x.class.simpleName
+                }
+                c()
+            }
+            assert m() == 'B'
+        '''
+    }
+
+    @Test // GROOVY-9344
+    void testFlowTyping3() {
+        assertScript '''
+            class A {}
+            class B {}
+
+            @groovy.transform.CompileStatic
+            String m() {
+                def x = new A()
+                def c = { ->
+                    x = new B()
+                }
+                c()
+                x.class.simpleName
+            }
+            assert m() == 'B'
+        '''
+    }
+
+    // GROOVY-8946
+    void testFlowTyping4() {
+        assertScript '''
+            /*@GrabResolver(name='grails', root='https://repo.grails.org/grails/core')
+            @Grapes([
+                @Grab('javax.servlet:javax.servlet-api:3.0.1'),
+                @Grab('org.grails.plugins:converters:3.3.+'),
+                @Grab('org.grails:grails-web:3.3.+'),
+                @Grab('org.slf4j:slf4j-nop:1.7.30')
+            ])
+            @GrabExclude('org.codehaus.groovy:*')
+            import static grails.converters.JSON.parse
+            */
+            class JSONElement {
+                def getProperty(String name) {
+                    if (name == 'k') return [1,2]
+                }
+            }
+            JSONElement parse(String json) {
+                new JSONElement()
+            }
+
+            @groovy.transform.CompileStatic
+            def test() {
+                def json = parse('[{"k":1},{"k":2}]')
+                def vals = json['k']
+                assert vals == [1,2]
+                boolean result = 'k'.tokenize('.').every { token -> // 'k' represents a path like 'a.b.c.d'
+                    json = json[token]
+                }
+                assert result
+                return json // Cannot cast object '[1, 2]' with class 'java.util.ArrayList' to class 'org.grails.web.json.JSONElement'
+            }
+            test()
+        '''
+    }
+
+    @Test
     void testInstanceOf() {
         assertScript '''
             @groovy.transform.CompileStatic
@@ -50,6 +132,7 @@ class StaticCompileFlowTypingTest extends AbstractBytecodeTestCase {
         '''
     }
 
+    @Test
     void testMethodSelection() {
         assertScript '''
             @groovy.transform.CompileStatic
@@ -63,6 +146,7 @@ class StaticCompileFlowTypingTest extends AbstractBytecodeTestCase {
         '''
     }
 
+    @Test
     void testMethodSelectionDifferentFromDynamicGroovy() {
         assertScript '''
             @groovy.transform.CompileStatic
@@ -90,7 +174,6 @@ class StaticCompileFlowTypingTest extends AbstractBytecodeTestCase {
             assert a.foo(arr[0]) == 1
             assert a.foo(arr[1]) == 2
             assert a.foo(arr[2]) == 3
-
         '''
     }
 }

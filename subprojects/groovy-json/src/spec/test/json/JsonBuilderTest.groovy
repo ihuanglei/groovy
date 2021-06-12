@@ -18,14 +18,15 @@
  */
 package json
 
-class JsonBuilderTest extends GroovyTestCase {
+import org.junit.Test
 
+import static groovy.test.GroovyAssert.assertScript
+
+final class JsonBuilderTest {
+    @Test
     void testJsonBuilder() {
         assertScript """
             import groovy.json.*
-            @Grapes([
-                @Grab('com.google.code.gson:gson:2.3.1'), //required by json-unit
-                @Grab('net.javacrumbs.json-unit:json-unit:1.5.5')])
             import net.javacrumbs.jsonunit.JsonAssert
 
             // tag::json_string[]
@@ -46,14 +47,14 @@ class JsonBuilderTest extends GroovyTestCase {
                 }
             '''
             // end::json_string[]
-            
+
             // tag::json_builder[]
             JsonBuilder builder = new JsonBuilder()
             builder.records {
               car {
                     name 'HSV Maloo'
                     make 'Holden'
-                    year 2006 
+                    year 2006
                     country 'Australia'
                     record {
                         type 'speed'
@@ -63,7 +64,7 @@ class JsonBuilderTest extends GroovyTestCase {
             }
             String json = JsonOutput.prettyPrint(builder.toString())
             // end::json_builder[]
-            
+
             // tag::json_assert[]
             JsonAssert.assertJsonEquals(json, carRecords)
             // end::json_assert[]

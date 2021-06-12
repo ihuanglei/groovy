@@ -20,11 +20,11 @@ package org.codehaus.groovy.ast.tools
 
 import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.ast.GenericsTestCase
-import static org.codehaus.groovy.ast.tools.WideningCategories.*
-import static org.codehaus.groovy.ast.ClassHelper.*
-import org.codehaus.groovy.ast.tools.WideningCategories.LowestUpperBoundClassNode
 
-class WideningCategoriesTest extends GenericsTestCase {
+import static org.codehaus.groovy.ast.ClassHelper.*
+import static org.codehaus.groovy.ast.tools.WideningCategories.*
+
+final class WideningCategoriesTest extends GenericsTestCase {
 
     void testBuildCommonTypeWithNullClassNode() {
         ClassNode a = null
@@ -91,7 +91,7 @@ class WideningCategoriesTest extends GenericsTestCase {
     void testBuildCommonTypeWithTwoClassesWithoutSuperClass() {
         ClassNode a = make(ClassA)
         ClassNode b = make(ClassB)
-        assert lowestUpperBound(a,b) == make(GroovyObject) // GroovyObject because Groovy classes implicitely implement GroovyObject
+        assert lowestUpperBound(a,b) == make(GroovyObject) // GroovyObject because Groovy classes implicitly implement GroovyObject
         assert lowestUpperBound(b,a) == make(GroovyObject)
     }
 
@@ -112,7 +112,6 @@ class WideningCategoriesTest extends GenericsTestCase {
             assert lowestUpperBound(b,a) == getWrapper(it)
         }
     }
-
 
     void testBuildCommonTypeWithTwoIdenticalClasses() {
         ClassNode a = make(HashSet)
@@ -176,6 +175,20 @@ class WideningCategoriesTest extends GenericsTestCase {
         assert type.interfaces as Set == [make(Serializable)] as Set
     }
 
+    // GROOVY-8111
+    void testBuildCommonTypeFromTwoClassesWithTwoCommonInterfacesOneIsSelfReferential() {
+        ClassNode a = boolean_TYPE
+        ClassNode b = extractTypesFromCode("${getClass().getName()}.Pair<String,String> type").type
+        ClassNode lub = lowestUpperBound(a, b)
+
+        assert lub.superClass == OBJECT_TYPE
+        assert lub.interfaces as Set == [make(Comparable), make(Serializable)] as Set
+
+        lub = lowestUpperBound(b, a)
+        assert lub.superClass == OBJECT_TYPE
+        assert lub.interfaces as Set == [make(Comparable), make(Serializable)] as Set
+    }
+
     void testStringWithGString() {
         ClassNode a = make(String)
         ClassNode b = make(GString)
@@ -213,7 +226,7 @@ class WideningCategoriesTest extends GenericsTestCase {
         assert lub.genericsTypes.length == 1
         assert lub.genericsTypes[0].wildcard
         assert lub.genericsTypes[0].upperBounds[0].superClass == Number_TYPE
-        assert lub.genericsTypes[0].upperBounds[0].interfaces == [ make(Comparable) ]
+        assert make(Comparable) in lub.genericsTypes[0].upperBounds[0].interfaces
     }
 
     void testLUBWithTwoInterfacesAndSingleCommonInterface() {
@@ -242,7 +255,7 @@ class WideningCategoriesTest extends GenericsTestCase {
     void testLUBWithTwoArgumentTypesSharingOneInterfaceNotImplementedBySuperClass() {
         // BottomA extends Top implements Serializable
         // BottomB extends Top implements Serializable
-        // Top does not implement Serialiazable
+        // Top does not implement Serializable
         ClassNode a = extractTypesFromCode('List<org.codehaus.groovy.ast.tools.WideningCategoriesTest.BottomA> type').type
         ClassNode b = extractTypesFromCode('List<org.codehaus.groovy.ast.tools.WideningCategoriesTest.BottomB> type').type
         ClassNode lub = lowestUpperBound(a,b)
@@ -258,7 +271,7 @@ class WideningCategoriesTest extends GenericsTestCase {
     void testLUBWithTwoParameterizedTypesSharingOneInterfaceNotImplementedBySuperClass() {
         // PTopInt extends PTop<Integer> implements Serializable
         // PTopLong extends PTop<Long> implements Serializable
-        // PTop<E> does not implement Serialiazable
+        // PTop<E> does not implement Serializable
         ClassNode a = extractTypesFromCode('org.codehaus.groovy.ast.tools.WideningCategoriesTest.PTopInt type').type
         ClassNode b = extractTypesFromCode('org.codehaus.groovy.ast.tools.WideningCategoriesTest.PTopLong type').type
         ClassNode lub = lowestUpperBound(a,b)
@@ -269,7 +282,6 @@ class WideningCategoriesTest extends GenericsTestCase {
         ClassNode genericType = lub.unresolvedSuperClass.genericsTypes[0].upperBounds[0]
         assert genericType == Long_TYPE
     }
-
 
     void testCommonAssignableType() {
         def typeA = extractTypesFromCode('LinkedList type').type
@@ -324,9 +336,9 @@ class WideningCategoriesTest extends GenericsTestCase {
         def type = superType.genericsTypes[0]
         assert type.wildcard
         assert type.upperBounds[0] instanceof LowestUpperBoundClassNode
-        assert type.upperBounds[0].interfaces as Set == [make(Serializable), make(Comparable)] as Set
-
-
+        [Comparable, Serializable].each {
+            assert make(it) in type.upperBounds[0].interfaces
+        }
     }
 
     void testLUBOfArrayTypes() {
@@ -339,6 +351,7 @@ class WideningCategoriesTest extends GenericsTestCase {
     }
 
     // ---------- Classes and Interfaces used in this unit test ----------------
+
     private static interface InterfaceA {}
     private static interface InterfaceB {}
     private static interface InterfaceE {}
@@ -361,5 +374,21 @@ class WideningCategoriesTest extends GenericsTestCase {
 
     private static class PTop<E> {}
     private static class PTopInt extends PTop<Integer> implements Serializable {}
-    private static class PTopLong extends PTop<Long>  implements Serializable {}
+    private static class PTopLong extends PTop<Long  > implements Serializable {}
+
+    private static class Pair<L,R> implements Map.Entry<L,R>, Comparable<Pair<L,R>>, Serializable {
+        public final L left
+        public final R right
+        private Pair(final L left, final R right) {
+            this.left = left
+            this.right = right
+        }
+        static <L, R> Pair<L, R> of(final L left, final R right) {
+            return new Pair<>(left, right)
+        }
+        L getKey() { left }
+        R getValue() { right }
+        R setValue(R value) { right }
+        int compareTo(Pair<L,R> that) { 0 }
+    }
 }

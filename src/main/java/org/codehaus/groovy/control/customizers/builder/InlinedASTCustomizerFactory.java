@@ -34,7 +34,7 @@ import java.util.Map;
  * <p>
  * Here is an example, which only logs the class name during compilation:
  * <pre>
- * inline(phase:'CONVERSION') { source, context, classNode ->
+ * inline(phase:'CONVERSION') { source, context, classNode {@code ->}
  *     println "visiting $classNode"
  * }
  * </pre>
@@ -49,6 +49,7 @@ public class InlinedASTCustomizerFactory extends AbstractFactory implements Post
         return true;
     }
 
+    @Override
     public Object newInstance(final FactoryBuilderSupport builder, final Object name, final Object value, final Map attributes) throws InstantiationException, IllegalAccessException {
         if (attributes.isEmpty() || !attributes.containsKey("phase")) {
             throw new RuntimeException("You must specify a CompilePhase to run at, using the [phase] attribute");
@@ -66,6 +67,7 @@ public class InlinedASTCustomizerFactory extends AbstractFactory implements Post
         return false;
     }
 
+    @Override
     public Object postCompleteNode(final FactoryBuilderSupport factory, final Object parent, final Object node) {
         if (node instanceof Map) {
             Map map = (Map) node;

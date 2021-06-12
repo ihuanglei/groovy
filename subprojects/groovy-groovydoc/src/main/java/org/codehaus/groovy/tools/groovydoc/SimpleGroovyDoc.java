@@ -18,18 +18,23 @@
  */
 package org.codehaus.groovy.tools.groovydoc;
 
-import org.codehaus.groovy.antlr.parser.GroovyTokenTypes;
 import org.codehaus.groovy.groovydoc.GroovyDoc;
 import org.codehaus.groovy.groovydoc.GroovyTag;
 
 import java.text.BreakIterator;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class SimpleGroovyDoc implements GroovyDoc, GroovyTokenTypes {
+public class SimpleGroovyDoc implements GroovyDoc/*, GroovyTokenTypes*/ {
+    public static final int CLASS_DEF = 13;
+    public static final int TRAIT_DEF = 15;
+    public static final int INTERFACE_DEF = 14;
+    public static final int ANNOTATION_DEF = 64;
+    public static final int ENUM_DEF = 61;
     private static final Pattern TAG2_PATTERN = Pattern.compile("(?s)([a-z]+)\\s+(.*)");
     private static final Pattern TAG3_PATTERN = Pattern.compile("(?s)([a-z]+)\\s+(\\S*)\\s+(.*)");
     private static final Pattern RAW_COMMENT_PATTERN = Pattern.compile("\"(?s).*?\\\\*\\\\s*@\"");
@@ -49,10 +54,12 @@ public class SimpleGroovyDoc implements GroovyDoc, GroovyTokenTypes {
         definitionType = CLASS_DEF;
     }
 
+    @Override
     public String name() {
         return name;
     }
 
+    @Override
     public String toString() {
         return "" + getClass() + "(" + name + ")";
     }
@@ -65,18 +72,22 @@ public class SimpleGroovyDoc implements GroovyDoc, GroovyTokenTypes {
         this.firstSentenceCommentText = firstSentenceCommentText;
     }
 
+    @Override
     public String commentText() {
         return commentText;
     }
 
+    @Override
     public String firstSentenceCommentText() {
         return firstSentenceCommentText;
     }
 
+    @Override
     public String getRawCommentText() {
         return rawCommentText;
     }
 
+    @Override
     public void setRawCommentText(String rawCommentText) {
         this.rawCommentText = rawCommentText;
         calculateTags(rawCommentText);
@@ -90,7 +101,7 @@ public class SimpleGroovyDoc implements GroovyDoc, GroovyTokenTypes {
         String trimmed = RAW_COMMENT_PATTERN.matcher(rawCommentText).replaceFirst("@");
         if (trimmed.equals(rawCommentText)) return;
         String cleaned = TRIMMED_COMMENT_PATTERN.matcher(trimmed).replaceAll("$1").trim();
-        String[] split = cleaned.split("(?m)^@");
+        String[] split = cleaned.split("(?m)^@", -1);
         List<GroovyTag> result = new ArrayList<GroovyTag>();
         for (String s : split) {
             String tagname = null;
@@ -135,6 +146,7 @@ public class SimpleGroovyDoc implements GroovyDoc, GroovyTokenTypes {
         return text;
     }
 
+    @Override
     public boolean isClass() {
         return definitionType == CLASS_DEF && !isScript;
     }
@@ -147,14 +159,17 @@ public class SimpleGroovyDoc implements GroovyDoc, GroovyTokenTypes {
         return definitionType == TRAIT_DEF;
     }
 
+    @Override
     public boolean isInterface() {
         return definitionType == INTERFACE_DEF;
     }
 
+    @Override
     public boolean isAnnotationType() {
         return definitionType == ANNOTATION_DEF;
     }
 
+    @Override
     public boolean isEnum() {
         return definitionType == ENUM_DEF;
     }
@@ -185,6 +200,7 @@ public class SimpleGroovyDoc implements GroovyDoc, GroovyTokenTypes {
     }
 
     // Methods from Comparable
+    @Override
     public int compareTo(Object that) {
         if (that instanceof GroovyDoc) {
             return name.compareTo(((GroovyDoc) that).name());
@@ -198,42 +214,52 @@ public class SimpleGroovyDoc implements GroovyDoc, GroovyTokenTypes {
     //    public GroovyTag[] firstSentenceTags() {/*todo*/return null;}
     //    public GroovyTag[] inlineTags() {/*todo*/return null;}
 
+    @Override
     public boolean isAnnotationTypeElement() {/*todo*/
         return false;
     }
 
+    @Override
     public boolean isConstructor() {/*todo*/
         return false;
     }
 
+    @Override
     public boolean isEnumConstant() {/*todo*/
         return false;
     }
 
+    @Override
     public boolean isDeprecated() {
         return deprecated;
     }
 
+    @Override
     public boolean isError() {/*todo*/
         return false;
     }
 
+    @Override
     public boolean isException() {/*todo*/
         return false;
     }
 
+    @Override
     public boolean isField() {/*todo*/
         return false;
     }
 
+    @Override
     public boolean isIncluded() {/*todo*/
         return false;
     }
 
+    @Override
     public boolean isMethod() {/*todo*/
         return false;
     }
 
+    @Override
     public boolean isOrdinaryClass() {/*todo*/
         return false;
     }
@@ -241,7 +267,7 @@ public class SimpleGroovyDoc implements GroovyDoc, GroovyTokenTypes {
 //    public GroovySeeTag[] seeTags() {/*todo*/return null;}
 
     public GroovyTag[] tags() {
-        return tags;
+        return tags == null ? null : Arrays.copyOf(tags, tags.length);
     }
 
 //    public GroovyTag[] tags(String arg0) {/*todo*/return null;}

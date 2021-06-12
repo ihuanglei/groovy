@@ -37,7 +37,6 @@ import java.util.Map;
  * Compilation unit to only generate stubs.
  */
 public class JavaStubCompilationUnit extends CompilationUnit {
-    private static final String DOT_GROOVY = ".groovy";
 
     private final JavaStubGenerator stubGenerator;
 
@@ -45,33 +44,26 @@ public class JavaStubCompilationUnit extends CompilationUnit {
 
     public JavaStubCompilationUnit(final CompilerConfiguration config, final GroovyClassLoader gcl, File destDir) {
         super(config, null, gcl);
-        assert config != null;
 
-        Map options = config.getJointCompilationOptions();
         if (destDir == null) {
+            Map<String, Object> options = configuration.getJointCompilationOptions();
             destDir = (File) options.get("stubDir");
         }
         boolean useJava5 = CompilerConfiguration.isPostJDK5(configuration.getTargetBytecode());
-		String encoding = configuration.getSourceEncoding();
+        String encoding = configuration.getSourceEncoding();
         stubGenerator = new JavaStubGenerator(destDir, false, useJava5, encoding);
 
-        addPhaseOperation(new PrimaryClassNodeOperation() {
-            @Override
-            public void call(SourceUnit source, GeneratorContext context, ClassNode node) throws CompilationFailedException {
-                VariableScopeVisitor scopeVisitor = new VariableScopeVisitor(source);
-                scopeVisitor.visitClass(node);
-                new JavaAwareResolveVisitor(JavaStubCompilationUnit.this).startResolving(node, source);
-            }
+        addPhaseOperation((final SourceUnit source, final GeneratorContext context, final ClassNode classNode) -> {
+            new VariableScopeVisitor(source).visitClass(classNode);
+            new JavaAwareResolveVisitor(this).startResolving(classNode, source);
         }, Phases.CONVERSION);
-        addPhaseOperation(new PrimaryClassNodeOperation() {
-            @Override
-            public void call(final SourceUnit source, final GeneratorContext context, final ClassNode node) throws CompilationFailedException {
-                try {
-                    stubGenerator.generateClass(node);
-                    stubCount++;
-                } catch (FileNotFoundException e) {
-                    source.addException(e);
-                }
+
+        addPhaseOperation((final SourceUnit source, final GeneratorContext context, final ClassNode classNode) -> {
+            try {
+                stubGenerator.generateClass(classNode);
+                stubCount += 1;
+            } catch (FileNotFoundException e) {
+                source.addException(e);
             }
         }, Phases.CONVERSION);
     }
@@ -94,7 +86,7 @@ public class JavaStubCompilationUnit extends CompilationUnit {
     public void configure(final CompilerConfiguration config) {
         super.configure(config);
         // GroovyClassLoader should be able to find classes compiled from java sources
-        File targetDir = config.getTargetDirectory();
+        File targetDir = configuration.getTargetDirectory();
         if (targetDir != null) {
             final String classOutput = targetDir.getAbsolutePath();
             getClassLoader().addClasspath(classOutput);

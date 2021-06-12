@@ -18,20 +18,25 @@
  */
 package groovy
 
+import org.junit.Test
+
 import java.util.regex.Matcher
 import java.util.regex.Pattern
+
+import static groovy.test.GroovyAssert.shouldFail
 
 /**
  * Tests Groovy's regular expression syntax and DGM methods.
  */
-class RegularExpressionsTest extends GroovyTestCase {
+final class RegularExpressionsTest {
 
+    @Test
     void testMatchOperator() {
         assert "cheese" ==~ "cheese"
         assert !("cheesecheese" ==~ "cheese")
     }
 
-    // The find operator is: =~
+    @Test // The find operator is: =~
     void testFindOperator() {
         assert "cheese" =~ "cheese"
 
@@ -44,14 +49,14 @@ class RegularExpressionsTest extends GroovyTestCase {
 
         assert m instanceof Matcher
 
-        while (m) {
+        while (m.find()) {
             i = i + 1
         }
         assert i == 2
 
         i = 0
         m = "cheesecheese" =~ "e+"
-        while (m) {
+        while (m.find()) {
             i = i + 1
         }
         assert i == 4
@@ -63,7 +68,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert m.group() == "ee"
     }
 
-    // From the javadoc of the getAt() method     
+    @Test // From the javadoc of the getAt() method
     void testMatcherWithIntIndex() {
         def p = /ab[d|f]/
         def m = "abcabdabeabf" =~ p
@@ -96,6 +101,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         }
     }
 
+    @Test
     void testMatcherWithIndexAndRanges() {
         def string = "cheesecheese"
         def matcher = string =~ "e+"
@@ -115,6 +121,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         shouldFail { matcher[0, [1, 2]] }
     }
 
+    @Test
     void testMatcherIterator() {
         def matcher = "cheesecheese" =~ "e+"
         def iter = matcher.iterator()
@@ -152,6 +159,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert [["chee", "ch"], ["se", "s"], [" ple", " pl"], ["ase", "as"]] == matcher.collect { it }
     }
 
+    @Test
     void testMatcherEach() {
         def count = 0
         def result = []
@@ -181,7 +189,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert [["chee", "ch"], ["se", "s"], [" ple", " pl"], ["ase", "as"]] == result
     }
 
-    // Check consistency between each and collect
+    @Test // Check consistency between each and collect
     void testMatcherEachVsCollect() {
         def matcher = "cheese cheese" =~ "e+"
         def result = []
@@ -208,6 +216,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert result == matcher.collect { a, g -> g }
     }
 
+    @Test
     void testSimplePattern() {
         def pattern = ~"foo"
         assert pattern instanceof Pattern
@@ -215,6 +224,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert !pattern.matcher("bar").matches()
     }
 
+    @Test
     void testMultiLinePattern() {
         def pattern = ~"""foo"""
         assert pattern instanceof Pattern
@@ -222,11 +232,12 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert !pattern.matcher("bar").matches()
     }
 
+    @Test
     void testPatternInAssertion() {
         assert "foofoofoo" =~ ~"foo"
     }
 
-
+    @Test
     void testMatcherWithReplace() {
         def matcher = "cheese-cheese" =~ "cheese"
         def answer = matcher.replaceAll("edam")
@@ -236,6 +247,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert cheese == "nice cheese!"
     }
 
+    @Test
     void testGetLastMatcher() {
         assert "cheese" ==~ "cheese"
         assert Matcher.getLastMatcher().matches()
@@ -256,6 +268,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         }
     }
 
+    @Test
     void testRyhmeMatchGina() {
         def myFairStringy = 'The rain in Spain stays mainly in the plain!'
         // words, that end with 'ain': \b\w*ain\b
@@ -274,6 +287,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert found == 'rain Spain plain '
     }
 
+    @Test
     void testEachMatchWithPattern() {
         def compiledPattern = ~/.at/
         def result = []
@@ -281,6 +295,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert "cat sat hat" == result.join(" ")
     }
 
+    @Test
     void testPatternVersionsOfStringRegexMethods() {
         def compiledPattern = ~/.at/
         def s = "The cat sat on the hat"
@@ -289,6 +304,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert s.replaceAll(compiledPattern, 'x') == "The x x on the x"
     }
 
+    @Test
     void testFindOperatorCollect() {
         def m = 'coffee' =~ /ee/
         def result = ''
@@ -309,6 +325,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert m.collect { it }.join(',') == 'ee,ee'
     }
 
+    @Test
     void testIteration() {
         def string = 'a:1 b:2 c:3'
         def result = []
@@ -337,12 +354,14 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert numbers == '123'
     }
 
+    @Test
     void testFirst() {
         assert "cheesecheese" =~ "cheese"
         assert "cheesecheese" =~ /cheese/
         assert "cheese" == /cheese/   /*they are both string syntaxes*/
     }
 
+    @Test
     void testSecond() {
         // Let's create a regex Pattern
         def pattern = ~/foo/
@@ -350,6 +369,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert pattern.matcher("foo").matches()
     }
 
+    @Test
     void testThird() {
         // Let's create a Matcher
         def matcher = "cheesecheese" =~ /cheese/
@@ -358,12 +378,14 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert answer == "edamedam"
     }
 
+    @Test
     void testFourth() {
         // Let's do some replacement
         def cheese = ("cheesecheese" =~ /cheese/).replaceFirst("nice")
         assert cheese == "nicecheese"
     }
 
+    @Test
     void testFifth() {
         def matcher = "\$abc." =~ "\\\$(.*)\\."
         matcher.matches();                   // must be invoked
@@ -372,6 +394,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert matcher[0][1] == "abc"
     }
 
+    @Test
     void testSixth() {
         def matcher = "\$abc." =~ /\$(.*)\./    // no need to double-escape!
         assert "\\\$(.*)\\." == /\$(.*)\./
@@ -381,6 +404,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert matcher[0][1] == "abc"
     }
 
+    @Test
     void testReplaceWithClosure() {
         assert '1-FISH, two fish' == "one fish, two fish".replaceFirst(~/([a-z]{3})\s([a-z]{4})/) {
             [one: 1, two: 2][it[1]] + '-' + it[2].toUpperCase()
@@ -390,6 +414,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         }
     }
 
+    @Test
     void testNoGroupMatcherAndGet() {
         def p = /ab[d|f]/
         def m = "abcabdabeabf" =~ p
@@ -402,6 +427,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert result == ['0:abd', '1:abf']
     }
 
+    @Test
     void testFindWithOneGroupAndGet() {
         def p = /(?:ab([c|d|e|f]))/
         def m = "abcabdabeabf" =~ p
@@ -414,6 +440,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert result == ['0:[abc, c]', '1:[abd, d]', '2:[abe, e]', '3:[abf, f]']
     }
 
+    @Test
     void testAnotherOneGroupMatcherAndGet() {
         def m = "abcabdabeabfabxyzabx" =~ /(?:ab([d|x-z]+))/
         def result = []
@@ -443,24 +470,28 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert '$\\23\\$\\45\\' == '$\\23\\$\\45\\'.replaceAll(p, c)
     }
 
+    @Test
     void testReplaceAllClosure() {
         def p = /([^z]*)(z)/
         def c = { all, m, d -> m }
         replaceAllHelper(p, c)
     }
 
+    @Test
     void testReplaceAllClosureWithIt() {
         def p = /([^z]*)(z)/
         def c = { it[1] }
         replaceAllHelper(p, c)
     }
 
+    @Test
     void testReplaceAllClosureWithObjectArray() {
         def p = /([^z]*)(z)/
         def c = { Object[] a -> a[1] }
         replaceAllHelper(p, c)
     }
 
+    @Test
     void testFind() {
         def p = /.ar/
         assert null == 'foo foo baz'.find(p)
@@ -476,6 +507,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert 'bar' == 'foo bar baz'.find(compiledPattern)
     }
 
+    @Test
     void testFindClosureNoGroups() {
         def p = /.ar/
         def c = { match -> return "-$match-" }
@@ -489,6 +521,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert '-car-' == 'car'.find(compiledPattern, c)
     }
 
+    @Test
     void testFindClosureWithGroups() {
         def AREA_CODE = /\d{3}/
         def EXCHANGE = /\d{3}/
@@ -513,6 +546,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert "(888) 555-1212" == "bar 888-555-1212 foo".find(compiledPhonePattern, closureSingleVar)
     }
 
+    @Test
     void testFindAll() {
         def p = /.at/
         def compiledPattern = ~p
@@ -526,6 +560,7 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert ["+cat", "+sat", "+hat"] == orig.findAll(compiledPattern) { "+$it" }
     }
 
+    @Test
     void testFindAllWithGroups() {
         def p = /(.)a(.)/
         def compiledPattern = ~p
@@ -543,10 +578,9 @@ class RegularExpressionsTest extends GroovyTestCase {
         assert ["c+cat+t", "s+sat+t", "h+hat+t"] == orig.findAll(compiledPattern, closureSingleVar)
     }
 
+    @Test
     void testMatchesPartially() {
-
         def pattern = /\w+@\w+\.\w{2,}/
-
         def useCases = [
                 "glaforge@gmail.com": true,
                 "glaforge"          : true,
@@ -554,7 +588,6 @@ class RegularExpressionsTest extends GroovyTestCase {
                 "glaforge@"         : true,
                 "glaforge@@"        : false
         ]
-
         useCases.each { String email, boolean bool ->
             def matcher = email =~ pattern
 

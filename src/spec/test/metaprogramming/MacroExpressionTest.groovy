@@ -19,6 +19,7 @@
 
 package metaprogramming
 
+import groovy.test.GroovyTestCase
 import org.codehaus.groovy.ast.ASTNode
 import org.codehaus.groovy.ast.ClassHelper
 import org.codehaus.groovy.ast.ClassNode
@@ -62,6 +63,8 @@ class MacroExpressionTest extends GroovyTestCase {
 @GroovyASTTransformationClass(["metaprogramming.AddGetTwoASTTransformation"])
 @interface AddGetTwo { }
 // end::addgettwoannotation[]
+
+import static org.objectweb.asm.Opcodes.ACC_PUBLIC
 
 // tag::addgettwotransformation[]
 @GroovyASTTransformation(phase = CompilePhase.INSTRUCTION_SELECTION)

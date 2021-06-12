@@ -16,14 +16,38 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-dependencies {
-    compile rootProject
-    compile 'junit:junit:4.12'
-    // groovy-ant needed for FileNameFinder used in AllTestSuite and JavadocAssertionTestSuite
-    testRuntime(project(':groovy-ant')) {
-        transitive = false // bring in just what we need below
-    }
-    testRuntime "org.apache.ant:ant-launcher:$antVersion"
+plugins {
+    id 'org.apache.groovy-library'
 }
 
-apply from: "${rootProject.projectDir}/gradle/jacoco/jacocofix.gradle"
+dependencies {
+    api rootProject   // GroovyTestCase uses Closure...
+    api "junit:junit:${versions.junit}" // GroovyTestCase extends TestCase...
+    // groovy-ant needed for FileNameFinder used in AllTestSuite and JavadocAssertionTestSuite
+    testRuntimeOnly(project(':groovy-ant')) {
+        transitive = false // bring in just what we need below
+    }
+    testRuntimeOnly "org.apache.ant:ant:${versions.ant}"
+    testRuntimeOnly "org.apache.ant:ant-launcher:${versions.ant}"
+}
+
+groovyLibrary {
+    withGrooid(
+            "org.apache.groovy:groovy-test-grooid:${sharedConfiguration.groovyVersion.get()}",
+            [] as Set,
+            [:],
+            [
+                    '*': ['META-INF/NOTICE']
+            ],
+            ['META-INF/NOTICE', 'META-INF/INDEX.LIST'],
+            [
+                    (project.relativePath(rootProject.file('notices/NOTICE-GROOIDJARJAR'))): 'META-INF/NOTICE'
+            ]
+    )
+}
+
+plugins.withId('eclipse') {
+    eclipse.classpath.file.whenMerged {
+        entries.removeAll { entry -> entry.path == '/groovy-ant' }
+    }
+}

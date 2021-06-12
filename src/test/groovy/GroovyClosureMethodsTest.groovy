@@ -18,6 +18,8 @@
  */
 package groovy
 
+import groovy.test.GroovyTestCase
+
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -28,7 +30,7 @@ import java.util.concurrent.TimeUnit
  */
 class GroovyClosureMethodsTest extends GroovyTestCase {
 
-    private String dirname_target = "target"
+    private String dirname_target = "build"
     private String dirname_source = "src/test/groovy"
 
     private String filename = "${dirname_target}/GroovyClosureMethodsTest.each.object"

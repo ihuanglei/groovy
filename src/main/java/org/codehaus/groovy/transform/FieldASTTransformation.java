@@ -36,7 +36,6 @@ import org.codehaus.groovy.ast.Variable;
 import org.codehaus.groovy.ast.VariableScope;
 import org.codehaus.groovy.ast.expr.ArgumentListExpression;
 import org.codehaus.groovy.ast.expr.ClosureExpression;
-import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.codehaus.groovy.ast.expr.ConstructorCallExpression;
 import org.codehaus.groovy.ast.expr.DeclarationExpression;
 import org.codehaus.groovy.ast.expr.Expression;
@@ -54,10 +53,11 @@ import java.util.Iterator;
 import java.util.List;
 
 import static org.apache.groovy.ast.tools.ClassNodeUtils.addGeneratedConstructor;
-import static org.apache.groovy.util.BeanUtils.capitalize;
 import static org.codehaus.groovy.ast.ClassHelper.make;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.assignX;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.block;
+import static org.codehaus.groovy.ast.tools.GeneralUtils.getSetterName;
+import static org.codehaus.groovy.ast.tools.GeneralUtils.nullX;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.param;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.params;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.propX;
@@ -84,6 +84,7 @@ public class FieldASTTransformation extends ClassCodeExpressionTransformer imple
     private ClosureExpression currentClosure;
     private ConstructorCallExpression currentAIC;
 
+    @Override
     public void visit(ASTNode[] nodes, SourceUnit source) {
         sourceUnit = source;
         if (nodes.length != 2 || !(nodes[0] instanceof AnnotationNode) || !(nodes[1] instanceof AnnotatedNode)) {
@@ -119,7 +120,7 @@ public class FieldASTTransformation extends ClassCodeExpressionTransformer imple
                     addError("Can't have a final field also annotated with @" + OPTION_TYPE.getNameWithoutPackage(), de);
                 }
             } else {
-                String setterName = "set" + capitalize(variableName);
+                String setterName = getSetterName(variableName);
                 cNode.addMethod(setterName, ACC_PUBLIC | ACC_SYNTHETIC, ClassHelper.VOID_TYPE, params(param(ve.getType(), variableName)), ClassNode.EMPTY_ARRAY, block(
                         stmt(assignX(propX(varX("this"), variableName), varX(variableName)))
                 ));
@@ -171,7 +172,7 @@ public class FieldASTTransformation extends ClassCodeExpressionTransformer imple
                     // TODO make EmptyExpression work
                     // partially works but not if only thing in script
                     // return EmptyExpression.INSTANCE;
-                    return new ConstantExpression(null);
+                    return nullX();
                 }
                 addError("Annotation " + MY_TYPE_NAME + " can only be used within a Script body.", expr);
                 return expr;
@@ -273,7 +274,7 @@ public class FieldASTTransformation extends ClassCodeExpressionTransformer imple
 
     @Override
     public void visitMethod(MethodNode node) {
-        Boolean oldInsideScriptBody = insideScriptBody;
+        boolean oldInsideScriptBody = insideScriptBody;
         if (node.isScriptBody()) insideScriptBody = true;
         super.visitMethod(node);
         insideScriptBody = oldInsideScriptBody;
@@ -286,6 +287,7 @@ public class FieldASTTransformation extends ClassCodeExpressionTransformer imple
         super.visitExpressionStatement(es);
     }
 
+    @Override
     protected SourceUnit getSourceUnit() {
         return sourceUnit;
     }

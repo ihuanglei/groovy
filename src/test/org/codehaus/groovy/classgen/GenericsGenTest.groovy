@@ -18,6 +18,7 @@
  */
 package org.codehaus.groovy.classgen
 
+import groovy.test.GroovyTestCase
 import org.codehaus.groovy.tools.*
 import org.codehaus.groovy.control.*
 
@@ -68,7 +69,7 @@ class GenericsGenTest extends GroovyTestCase {
                 "stubDir": createTempDir("groovy-stub-", "-stub"),
                 "namedValues": ["target", "1.7", "source", "1.7"] as String[]
         ]
-        config.classpath = "target/classes"
+        config.classpath = "build/classes"
         FileSystemCompiler compiler = new FileSystemCompiler(config)
         compiler.compile(fileList.toArray(new File[fileList.size()]))
     }
@@ -88,6 +89,6 @@ class GenericsGenTest extends GroovyTestCase {
         File tempFile = File.createTempDir(prefix, suffix)
         tempFile.deleteOnExit()
         filesToDelete.add(tempFile)
-        return tempFile;
+        return tempFile
     }
 }

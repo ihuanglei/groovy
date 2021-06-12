@@ -43,6 +43,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.groovy.ast.tools.ExpressionUtils.transformInlineConstants;
+import static org.codehaus.groovy.ast.ClassHelper.isClassType;
+import static org.codehaus.groovy.ast.ClassHelper.isStringType;
 
 /**
  * An Annotation visitor responsible for:
@@ -85,7 +87,7 @@ public class AnnotationVisitor {
         if (!checkIfValidEnumConstsAreUsed(node)) {
             return node;
         }
-        
+
         Map<String, Expression> attributes = node.getMembers();
         for (Map.Entry<String, Expression> entry : attributes.entrySet()) {
             String attrName = entry.getKey();
@@ -97,7 +99,7 @@ public class AnnotationVisitor {
         VMPluginFactory.getPlugin().configureAnnotation(node);
         return this.annotation;
     }
-    
+
     private boolean checkIfValidEnumConstsAreUsed(AnnotationNode node) {
         Map<String, Expression> attributes = node.getMembers();
         for (Map.Entry<String, Expression> entry : attributes.entrySet()) {
@@ -106,7 +108,7 @@ public class AnnotationVisitor {
         }
         return true;
     }
-    
+
     private boolean validateEnumConstant(Expression exp) {
         if (exp instanceof PropertyExpression) {
             PropertyExpression pe = (PropertyExpression) exp;
@@ -154,7 +156,7 @@ public class AnnotationVisitor {
         // if it is an error, we have to test it at another place. But size==0 is
         // an error, because it means that no such attribute exists.
         if (methods.isEmpty()) {
-            addError("'" + attrName + "'is not part of the annotation " + classNode, node);
+            addError("'" + attrName + "'is not part of the annotation " + classNode.getNameWithoutPackage(), node);
             return ClassHelper.OBJECT_TYPE;
         }
         MethodNode method = (MethodNode) methods.get(0);
@@ -184,9 +186,9 @@ public class AnnotationVisitor {
             }
         } else if (ClassHelper.isPrimitiveType(attrType)) {
             visitConstantExpression(attrName, getConstantExpression(attrExp, attrType), ClassHelper.getWrapper(attrType));
-        } else if (ClassHelper.STRING_TYPE.equals(attrType)) {
+        } else if (isStringType(attrType)) {
             visitConstantExpression(attrName, getConstantExpression(attrExp, attrType), ClassHelper.STRING_TYPE);
-        } else if (ClassHelper.CLASS_Type.equals(attrType)) {
+        } else if (isClassType(attrType)) {
             if (!(attrExp instanceof ClassExpression || attrExp instanceof ClosureExpression)) {
                 addError("Only classes and closures can be used for attribute '" + attrName + "'", attrExp);
             }
@@ -211,8 +213,8 @@ public class AnnotationVisitor {
         if (attrType.isArray()) {
             checkReturnType(attrType.getComponentType(), node);
         } else if (ClassHelper.isPrimitiveType(attrType)) {
-        } else if (ClassHelper.STRING_TYPE.equals(attrType)) {
-        } else if (ClassHelper.CLASS_Type.equals(attrType)) {
+        } else if (isStringType(attrType)) {
+        } else if (isClassType(attrType)) {
         } else if (attrType.isDerivedFrom(ClassHelper.Enum_Type)) {
         } else if (isValidAnnotationClass(attrType)) {
         } else {
@@ -236,14 +238,11 @@ public class AnnotationVisitor {
         } else {
             addError(base, exp);
         }
-        return ConstantExpression.EMPTY_EXPRESSION;
+        ConstantExpression ret = new ConstantExpression(null);
+        ret.setSourcePosition(exp);
+        return ret;
     }
 
-    /**
-     * @param attrName   the name
-     * @param expression the expression
-     * @param attrType   the type
-     */
     protected void visitAnnotationExpression(String attrName, AnnotationConstantExpression expression, ClassNode attrType) {
         AnnotationNode annotationNode = (AnnotationNode) expression.getValue();
         AnnotationVisitor visitor = new AnnotationVisitor(this.source, this.errorCollector);
@@ -310,5 +309,4 @@ public class AnnotationVisitor {
             checkCircularReference(searchClass, method.getReturnType(), code.getExpression());
         }
     }
-
 }

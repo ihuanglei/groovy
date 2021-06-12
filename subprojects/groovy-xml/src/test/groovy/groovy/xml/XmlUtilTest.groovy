@@ -18,15 +18,16 @@
  */
 package groovy.xml
 
+import groovy.test.GroovyTestCase
 import org.xml.sax.ErrorHandler
 import org.xml.sax.InputSource
 
 import javax.xml.transform.stream.StreamSource
 
-import static groovy.xml.XmlAssert.assertXmlEquals
-import static groovy.xml.XmlUtil.newSAXParser
+import static groovy.util.XmlAssert.assertXmlEquals
 import static groovy.xml.XmlUtil.escapeControlCharacters
 import static groovy.xml.XmlUtil.escapeXml
+import static groovy.xml.XmlUtil.newSAXParser
 import static javax.xml.XMLConstants.W3C_XML_SCHEMA_NS_URI
 
 class XmlUtilTest extends GroovyTestCase {
@@ -42,6 +43,15 @@ class XmlUtilTest extends GroovyTestCase {
         def source = new InputSource(new StringReader(xml))
         source.encoding = "UTF-8"
         assertXmlEquals(xml, XmlUtil.serialize(new XmlSlurper().parse(source)))
+    }
+
+    def xml2 = '<?xml version="1.0" encoding="UTF-8"?><Name>🎁4</Name>'
+
+    // GROOVY-10132
+    void testSerializeOfSurrogate() {
+        def source = new InputSource(new StringReader(xml2))
+        source.encoding = "UTF-8"
+        assertXmlEquals(xml2, XmlUtil.serialize(new XmlSlurper().parse(source)))
     }
 
     // GROOVY-5361

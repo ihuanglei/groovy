@@ -30,18 +30,20 @@ public class MethodCallerMultiAdapter {
         MethodCallerMultiAdapter mcma = new MethodCallerMultiAdapter();
         mcma.skipSpreadSafeAndSafe = skipSpreadSafeAndSafe;
         if (createNArgs) {
-            int numberOfBaseMethods = mcma.numberOfBaseMethods();
+            final int numberOfBaseMethods = mcma.numberOfBaseMethods();
             mcma.methods = new MethodCaller[(MAX_ARGS + 2) * numberOfBaseMethods];
             for (int i = 0; i <= MAX_ARGS; i++) {
-                mcma.methods[i * numberOfBaseMethods] = MethodCaller.newStatic(theClass, baseName + i);
+                final int idx = i * numberOfBaseMethods;
+                mcma.methods[idx] = MethodCaller.newStatic(theClass, baseName + i);
                 if (skipSpreadSafeAndSafe) continue;
-                mcma.methods[i * numberOfBaseMethods + 1] = MethodCaller.newStatic(theClass, baseName + i + "Safe");
-                mcma.methods[i * numberOfBaseMethods + 2] = MethodCaller.newStatic(theClass, baseName + i + "SpreadSafe");
+                mcma.methods[idx + 1] = MethodCaller.newStatic(theClass, baseName + i + "Safe");
+                mcma.methods[idx + 2] = MethodCaller.newStatic(theClass, baseName + i + "SpreadSafe");
             }
-            mcma.methods[(MAX_ARGS + 1) * numberOfBaseMethods] = MethodCaller.newStatic(theClass, baseName + "N");
+            final int idx = (MAX_ARGS + 1) * numberOfBaseMethods;
+            mcma.methods[idx] = MethodCaller.newStatic(theClass, baseName + "N");
             if (!skipSpreadSafeAndSafe) {
-                mcma.methods[(MAX_ARGS + 1) * numberOfBaseMethods + 1] = MethodCaller.newStatic(theClass, baseName + "N" + "Safe");
-                mcma.methods[(MAX_ARGS + 1) * numberOfBaseMethods + 2] = MethodCaller.newStatic(theClass, baseName + "N" + "SpreadSafe");
+                mcma.methods[idx + 1] = MethodCaller.newStatic(theClass, baseName + "N" + "Safe");
+                mcma.methods[idx + 2] = MethodCaller.newStatic(theClass, baseName + "N" + "SpreadSafe");
             }
 
         } else if (!skipSpreadSafeAndSafe) {
@@ -60,7 +62,7 @@ public class MethodCallerMultiAdapter {
 
     /**
      * @param methodVisitor
-     * @param numberOfArguments a value >0 describing how many arguments are additionally used for the method call
+     * @param numberOfArguments a value &gt; 0 describing how many arguments are additionally used for the method call
      * @param safe
      * @param spreadSafe
      */

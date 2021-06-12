@@ -18,6 +18,9 @@
  */
 package groovy.xml
 
+import groovy.namespace.QName
+import groovy.test.GroovyTestCase
+
 /**
  * Tests for the Groovy Xml user guide related to XmlParser.
  */

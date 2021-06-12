@@ -18,7 +18,7 @@
  */
 package org.codehaus.groovy.runtime.memoize;
 
-import org.apache.groovy.util.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
+import org.apache.groovy.util.concurrent.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.lang.ref.SoftReference;
@@ -60,12 +60,13 @@ public final class LRUCache<K, V> implements MemoizeCache<K, V> {
      */
     @Override
     public V getAndPut(K key, ValueProvider<? super K, ? extends V> valueProvider) {
-        return map.computeIfAbsent(key, k -> valueProvider.provide(k));
+        return map.computeIfAbsent(key, valueProvider::provide);
     }
 
     /**
      * Remove all entries holding SoftReferences to gc-evicted objects.
      */
+    @Override
     public void cleanUpNullReferences() {
         synchronized (map) {
             final Iterator<Map.Entry<K, V>> iterator = map.entrySet().iterator();

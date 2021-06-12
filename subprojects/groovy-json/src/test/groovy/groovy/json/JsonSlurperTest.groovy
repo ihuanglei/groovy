@@ -18,6 +18,7 @@
  */
 package groovy.json
 
+import groovy.test.GroovyTestCase
 import org.apache.groovy.json.internal.Value
 
 class JsonSlurperTest extends GroovyTestCase {
@@ -348,6 +349,39 @@ class JsonSlurperTest extends GroovyTestCase {
         shouldFail(exceptional) { parser.parseText('{"num": 6.92e+}') }
         shouldFail(exceptional) { parser.parseText('{"num": 6+}') }
         shouldFail(exceptional) { parser.parseText('{"num": 6-}') }
+    }
+
+
+    void testParsePath() {
+        def file = File.createTempFile('test','json')
+        file.deleteOnExit()
+        file.text = '''
+            {
+                "response": {
+                    "status": "ok",
+                    "code": 200,
+                    "chuncked": false,
+                    "content-type-supported": ["text/html", "text/plain"],
+                    "headers": {
+                        "If-Last-Modified": "2010"
+                    }
+                }
+            }
+        '''
+
+        and:
+        def result = new JsonSlurper().parse(file.toPath())
+        assert result == [
+                response: [
+                        status: "ok",
+                        code: 200,
+                        chuncked: false,
+                        "content-type-supported": ["text/html", "text/plain"],
+                        headers: [
+                                "If-Last-Modified": "2010"
+                        ]
+                ] ]
+
     }
 
 }

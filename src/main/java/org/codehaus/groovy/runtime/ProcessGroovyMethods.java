@@ -241,10 +241,15 @@ public class ProcessGroovyMethods extends DefaultGroovyMethodsSupport {
     public static void waitForProcessOutput(Process self, Appendable output, Appendable error) {
         Thread tout = consumeProcessOutputStream(self, output);
         Thread terr = consumeProcessErrorStream(self, error);
-        try { tout.join(); } catch (InterruptedException ignore) {}
-        try { terr.join(); } catch (InterruptedException ignore) {}
-        try { self.waitFor(); } catch (InterruptedException ignore) {}
-        closeStreams(self);
+        boolean interrupted = false;
+        try {
+            try { tout.join(); } catch (InterruptedException ignore) { interrupted = true; }
+            try { terr.join(); } catch (InterruptedException ignore) { interrupted = true; }
+            try { self.waitFor(); } catch (InterruptedException ignore) { interrupted = true; }
+            closeStreams(self);
+        } finally {
+            if (interrupted) Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -263,10 +268,15 @@ public class ProcessGroovyMethods extends DefaultGroovyMethodsSupport {
     public static void waitForProcessOutput(Process self, OutputStream output, OutputStream error) {
         Thread tout = consumeProcessOutputStream(self, output);
         Thread terr = consumeProcessErrorStream(self, error);
-        try { tout.join(); } catch (InterruptedException ignore) {}
-        try { terr.join(); } catch (InterruptedException ignore) {}
-        try { self.waitFor(); } catch (InterruptedException ignore) {}
-        closeStreams(self);
+        boolean interrupted = false;
+        try {
+            try { tout.join(); } catch (InterruptedException ignore) { interrupted = true; }
+            try { terr.join(); } catch (InterruptedException ignore) { interrupted = true; }
+            try { self.waitFor(); } catch (InterruptedException ignore) { interrupted = true; }
+            closeStreams(self);
+        } finally {
+            if (interrupted) Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -348,13 +358,11 @@ public class ProcessGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 1.5.2
      */
     public static void withWriter(final Process self, final Closure closure) {
-        new Thread(new Runnable() {
-            public void run() {
-                try {
-                    IOGroovyMethods.withWriter(new BufferedOutputStream(getOut(self)), closure);
-                } catch (IOException e) {
-                    throw new GroovyRuntimeException("exception while reading process stream", e);
-                }
+        new Thread(() -> {
+            try {
+                IOGroovyMethods.withWriter(new BufferedOutputStream(getOut(self)), closure);
+            } catch (IOException e) {
+                throw new GroovyRuntimeException("exception while reading process stream", e);
             }
         }).start();
     }
@@ -370,13 +378,11 @@ public class ProcessGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 1.5.2
      */
     public static void withOutputStream(final Process self, final Closure closure) {
-        new Thread(new Runnable() {
-            public void run() {
-                try {
-                    IOGroovyMethods.withStream(new BufferedOutputStream(getOut(self)), closure);
-                } catch (IOException e) {
-                    throw new GroovyRuntimeException("exception while reading process stream", e);
-                }
+        new Thread(() -> {
+            try {
+                IOGroovyMethods.withStream(new BufferedOutputStream(getOut(self)), closure);
+            } catch (IOException e) {
+                throw new GroovyRuntimeException("exception while reading process stream", e);
             }
         }).start();
     }
@@ -391,22 +397,20 @@ public class ProcessGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 1.5.2
      */
     public static Process pipeTo(final Process left, final Process right) throws IOException {
-        new Thread(new Runnable() {
-            public void run() {
-                InputStream in = new BufferedInputStream(getIn(left));
-                OutputStream out = new BufferedOutputStream(getOut(right));
-                byte[] buf = new byte[8192];
-                int next;
-                try {
-                    while ((next = in.read(buf)) != -1) {
-                        out.write(buf, 0, next);
-                    }
-                } catch (IOException e) {
-                    throw new GroovyRuntimeException("exception while reading process stream", e);
-                } finally {
-                    closeWithWarning(out);
-                    closeWithWarning(in);
+        new Thread(() -> {
+            InputStream in = new BufferedInputStream(getIn(left));
+            OutputStream out = new BufferedOutputStream(getOut(right));
+            byte[] buf = new byte[8192];
+            int next;
+            try {
+                while ((next = in.read(buf)) != -1) {
+                    out.write(buf, 0, next);
                 }
+            } catch (IOException e) {
+                throw new GroovyRuntimeException("exception while reading process stream", e);
+            } finally {
+                closeWithWarning(out);
+                closeWithWarning(in);
             }
         }).start();
         return right;
@@ -444,11 +448,12 @@ public class ProcessGroovyMethods extends DefaultGroovyMethodsSupport {
         private void doProcessWait() {
             try {
                 process.waitFor();
-            } catch (InterruptedException e) {
-                // Ignore
+            } catch (InterruptedException ignore) {
+                Thread.currentThread().interrupt();
             }
         }
 
+        @Override
         public void run() {
             doProcessWait();
             synchronized (this) {
@@ -461,8 +466,8 @@ public class ProcessGroovyMethods extends DefaultGroovyMethodsSupport {
             if (!finished) {
                 try {
                     wait(millis);
-                } catch (InterruptedException e) {
-                    // Ignore
+                } catch (InterruptedException ignore) {
+                    Thread.currentThread().interrupt();
                 }
                 if (!finished) {
                     process.destroy();
@@ -481,6 +486,7 @@ public class ProcessGroovyMethods extends DefaultGroovyMethodsSupport {
             this.app = app;
         }
 
+        @Override
         public void run() {
             InputStreamReader isr = new InputStreamReader(in);
             BufferedReader br = new BufferedReader(isr);
@@ -507,6 +513,7 @@ public class ProcessGroovyMethods extends DefaultGroovyMethodsSupport {
             this.out = out;
         }
 
+        @Override
         public void run() {
             byte[] buf = new byte[8192];
             int next;

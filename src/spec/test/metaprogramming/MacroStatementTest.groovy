@@ -19,6 +19,7 @@
 
 package metaprogramming
 
+import groovy.test.GroovyTestCase
 import org.codehaus.groovy.ast.*
 import org.codehaus.groovy.ast.expr.ConstantExpression
 import org.codehaus.groovy.ast.stmt.ReturnStatement
@@ -68,6 +69,8 @@ class MacroStatementTest extends GroovyTestCase {
 @GroovyASTTransformationClass(["metaprogramming.AddMethodASTTransformation"])
 @interface AddMethod { }
 // end::addmethodannotation[]
+
+import static org.objectweb.asm.Opcodes.ACC_PUBLIC
 
 // tag::addmethodtransformationwithoutmacro[]
 @GroovyASTTransformation(phase = CompilePhase.INSTRUCTION_SELECTION)

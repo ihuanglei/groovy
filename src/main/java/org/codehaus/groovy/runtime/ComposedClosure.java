@@ -29,29 +29,29 @@ import java.util.List;
  * <p>
  * Typical usages:
  * <pre class="groovyTestCase">
- * def twice = { a -> a * 2 }
- * def inc = { b -> b + 1 }
- * def f = { x -> twice(inc(x)) } // longhand
- * def g = inc >> twice
- * def h = twice << inc
+ * def twice = { a {@code ->} a * 2 }
+ * def inc = { b {@code ->} b + 1 }
+ * def f = { x {@code ->} twice(inc(x)) } // longhand
+ * def g = inc {@code >>} twice
+ * def h = twice {@code <<} inc
  * assert f(10) == 22
  * assert g(10) == 22
  * assert h(10) == 22
  *
  * def s2c = { it.chars[0] }
- * def p = Integer.&toHexString >> s2c >> Character.&toUpperCase
+ * {@code def p = Integer.&toHexString >> s2c >> Character.&toUpperCase}
  * assert p(15) == 'F'
  *
- * def multiply = { a, b -> a * b }
- * def identity = { a -> [a, a] }
- * def sq = identity >> multiply
+ * def multiply = { a, b {@code ->} a * b }
+ * def identity = { a {@code ->} [a, a] }
+ * def sq = identity {@code >>} multiply
  * assert (1..5).collect{ sq(it) } == [1, 4, 9, 16, 25]
  *
- * def add3 = { a, b, c -> a + b + c }
+ * def add3 = { a, b, c {@code ->} a + b + c }
  * def add2plus10 = add3.curry(10)
- * def multBoth = { a, b, c -> [a*c, b*c] }
+ * def multBoth = { a, b, c {@code ->} [a*c, b*c] }
  * def twiceBoth = multBoth.rcurry(2)
- * def twiceBothPlus10 = twiceBoth >> add2plus10
+ * def twiceBothPlus10 = twiceBoth {@code >>} add2plus10
  * assert twiceBothPlus10(5, 10) == 40
  * </pre>
  */
@@ -68,28 +68,34 @@ public final class ComposedClosure<V> extends Closure<V> {
         maximumNumberOfParameters = first.getMaximumNumberOfParameters();
     }
 
+    @Override
     public void setDelegate(Object delegate) {
         ((Closure) getOwner()).setDelegate(delegate);
         second.setDelegate(delegate);
     }
 
+    @Override
     public Object getDelegate() {
         return ((Closure) getOwner()).getDelegate();
     }
 
+    @Override
     public void setResolveStrategy(int resolveStrategy) {
         ((Closure) getOwner()).setResolveStrategy(resolveStrategy);
         second.setResolveStrategy(resolveStrategy);
     }
 
+    @Override
     public int getResolveStrategy() {
         return ((Closure) getOwner()).getResolveStrategy();
     }
 
+    @Override
     public Object clone() {
         return new ComposedClosure<V>(first, second);
     }
 
+    @Override
     public Class[] getParameterTypes() {
         return first.getParameterTypes();
     }

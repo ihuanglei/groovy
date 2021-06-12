@@ -18,12 +18,15 @@
  */
 package org.codehaus.groovy.runtime.powerassert
 
-import static AssertionTestUtil.*
+import groovy.test.GroovyTestCase
+
+import static org.codehaus.groovy.runtime.powerassert.AssertionTestUtil.*
 
 /**
  * Defines assertions in different locations and checks if they are transformed.
  */
-class AssertionsInDifferentLocationsTest extends GroovyTestCase {
+final class AssertionsInDifferentLocationsTest extends GroovyTestCase {
+
     void testInConstructor() {
         fails {
             new AssertionInConstructor()

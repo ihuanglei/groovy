@@ -19,6 +19,7 @@
 
 package metaprogramming
 
+import groovy.test.GroovyTestCase
 import org.codehaus.groovy.ast.*
 import org.codehaus.groovy.ast.expr.VariableExpression
 import org.codehaus.groovy.ast.stmt.BlockStatement
@@ -57,6 +58,8 @@ class MacroVariableSubstitutionTest extends GroovyTestCase {
 @GroovyASTTransformationClass(["metaprogramming.MD5ASTTransformation"])
 @interface MD5 { }
 // end::md5annotation[]
+
+import static org.objectweb.asm.Opcodes.ACC_PUBLIC
 
 // tag::md5transformation[]
 @GroovyASTTransformation(phase = CompilePhase.CANONICALIZATION)

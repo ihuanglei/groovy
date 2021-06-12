@@ -18,9 +18,12 @@
  */
 package groovy.bugs
 
-import gls.CompilableTestSupport
+import groovy.test.GroovyTestCase
+import groovy.transform.CompileStatic
 
-class Groovy8609Bug extends CompilableTestSupport {
+@CompileStatic
+final class Groovy8609Bug extends GroovyTestCase {
+
     void testUpperBoundWithGenerics() {
         assertScript '''
         @groovy.transform.CompileStatic
@@ -28,7 +31,7 @@ class Groovy8609Bug extends CompilableTestSupport {
             E getFirstRecord(T recordList) {
                 return recordList.get(0)
             }
-            
+
             static void main(args) {
                 def list = new ArrayList<HashMap<String, Integer>>()
                 def record = new HashMap<String, Integer>()
@@ -47,7 +50,7 @@ class Groovy8609Bug extends CompilableTestSupport {
             E getFirstRecord(T recordList) {
                 return recordList.get(0);
             }
-            
+
             static void main(args) {
                 def list = new ArrayList<HashMap<String, Integer>>()
                 def record = new HashMap<String, Integer>()
@@ -66,7 +69,7 @@ class Groovy8609Bug extends CompilableTestSupport {
             E getFirstRecord(T recordList) {
                 return recordList.get(0);
             }
-            
+
             static void main(args) {
                 def list = new ArrayList<HashMap<String, Integer>>()
                 def record = new HashMap<String, Integer>()
@@ -85,7 +88,7 @@ class Groovy8609Bug extends CompilableTestSupport {
             E getFirstRecord(T recordList) {
                 return recordList.get(0)
             }
-            
+
             static void main(args) {
                 def list = new ArrayList<TreeMap<String, Integer>>()
                 def record = new TreeMap<String, Integer>()
@@ -96,7 +99,7 @@ class Groovy8609Bug extends CompilableTestSupport {
         }
         '''
 
-        assert errMsg.contains('[Static type checking] - Cannot call A <ArrayList, HashMap>#getFirstRecord(T) with arguments [java.util.ArrayList <TreeMap>]')
+        assert errMsg.contains('[Static type checking] - Cannot find matching method A#getFirstRecord(java.util.ArrayList<java.util.TreeMap<java.lang.String, java.lang.Integer>>)')
     }
 
     void testUpperBoundWithGenericsThroughWrongType2() {
@@ -106,7 +109,7 @@ class Groovy8609Bug extends CompilableTestSupport {
             E getFirstRecord(T recordList) {
                 return recordList.get(0)
             }
-            
+
             static void main(args) {
                 def list = new ArrayList<HashMap<String, Long>>()
                 def record = new HashMap<String, Long>()
@@ -117,8 +120,7 @@ class Groovy8609Bug extends CompilableTestSupport {
         }
         '''
 
-        // TODO we should print generics details, e.g. [Static type checking] - Cannot call A <ArrayList, HashMap<String, Integer>>#getFirstRecord(T) with arguments [java.util.ArrayList <HashMap<String, Long>>]
-        assert errMsg.contains('[Static type checking] - Cannot call A <ArrayList, HashMap>#getFirstRecord(T) with arguments [java.util.ArrayList <HashMap>]')
+        assert errMsg.contains('[Static type checking] - Cannot find matching method A#getFirstRecord(java.util.ArrayList<java.util.HashMap<java.lang.String, java.lang.Long>>)')
     }
 
     void testUpperBoundWithGenericsThroughWrongType3() {
@@ -128,7 +130,7 @@ class Groovy8609Bug extends CompilableTestSupport {
             E getFirstRecord(T recordList) {
                 return recordList.get(0)
             }
-            
+
             static void main(args) {
                 def list = new ArrayList<HashMap<StringBuffer, Integer>>()
                 def record = new HashMap<StringBuffer, Integer>()
@@ -139,7 +141,6 @@ class Groovy8609Bug extends CompilableTestSupport {
         }
         '''
 
-        // TODO we should print generics details, e.g. [Static type checking] - Cannot call A <ArrayList, HashMap<String, Integer>>#getFirstRecord(T) with arguments [java.util.ArrayList <HashMap<StringBuffer, Integer>>]
-        assert errMsg.contains('[Static type checking] - Cannot call A <ArrayList, HashMap>#getFirstRecord(T) with arguments [java.util.ArrayList <HashMap>]')
+        assert errMsg.contains('[Static type checking] - Cannot find matching method A#getFirstRecord(java.util.ArrayList<java.util.HashMap<java.lang.StringBuffer, java.lang.Integer>>)')
     }
 }

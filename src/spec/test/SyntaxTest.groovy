@@ -111,6 +111,7 @@ class SyntaxTest extends CompilableTestSupport {
         assert 456G == new BigInteger('456')
         assert 456g == new BigInteger('456')
         assert 123.45 == new BigDecimal('123.45') // default BigDecimal type used
+        assert .321 == new BigDecimal('.321')
         assert 1.200065D == new Double('1.200065')
         assert 1.234F == new Float('1.234')
         assert 1.23E23D == new Double('1.23E23')
@@ -283,7 +284,7 @@ class SyntaxTest extends CompilableTestSupport {
         // end::string_0[]
 
         // tag::string_1[]
-        'a single quoted string'
+        'a single-quoted string'
         // end::string_1[]
 
         // tag::string_2[]
@@ -299,7 +300,7 @@ class SyntaxTest extends CompilableTestSupport {
         // end::string_4[]
 
         // tag::string_5[]
-        "a double quoted string"
+        "a double-quoted string"
         // end::string_5[]
     }
 
@@ -307,19 +308,6 @@ class SyntaxTest extends CompilableTestSupport {
         // tag::string_plus[]
         assert 'ab' == 'a' + 'b'
         // end::string_plus[]
-    }
-
-    void testCharacters() {
-        // tag::char[]
-        char c1 = 'A' // <1>
-        assert c1 instanceof Character
-
-        def c2 = 'B' as char // <2>
-        assert c2 instanceof Character
-
-        def c3 = (char)'C' // <3>
-        assert c3 instanceof Character
-        // end::char[]
     }
 
     void testGString() {
@@ -339,6 +327,19 @@ class SyntaxTest extends CompilableTestSupport {
         def person = [name: 'Guillaume', age: 36]
         assert "$person.name is $person.age years old" == 'Guillaume is 36 years old'
         // end::gstring_3[]
+        // tag::gstring_3b[]
+        String thing = 'treasure'
+        // end::gstring_3b[]
+        /*
+        // tag::gstring_3b2[]
+        assert 'The x-coordinate of the treasure is represented by treasure.x' ==
+            "The x-coordinate of the $thing is represented by $thing.x"   // <= Not allowed: ambiguous!!
+        // end::gstring_3b2[]
+        */
+        // tag::gstring_3b3[]
+        assert 'The x-coordinate of the treasure is represented by treasure.x' ==
+                "The x-coordinate of the $thing is represented by ${thing}.x"  // <= Curly braces required
+        // end::gstring_3b3[]
 
         // tag::gstring_4[]
         def number = 3.14
@@ -350,8 +351,22 @@ class SyntaxTest extends CompilableTestSupport {
         // end::gstring_5[]
 
         // tag::gstring_6[]
+        assert '$5' == "\$5"
         assert '${name}' == "\${name}"
         // end::gstring_6[]
+    }
+
+    void testCharacters() {
+        // tag::char[]
+        char c1 = 'A' // <1>
+        assert c1 instanceof Character
+
+        def c2 = 'B' as char // <2>
+        assert c2 instanceof Character
+
+        def c3 = (char)'C' // <3>
+        assert c3 instanceof Character
+        // end::char[]
     }
 
     void testInterpolatingClosuresInGstrings() {
@@ -410,7 +425,7 @@ class SyntaxTest extends CompilableTestSupport {
 
     void testTripleSingleQuotedString() {
         // tag::triple_single_0[]
-        '''a triple single quoted string'''
+        '''a triple-single-quoted string'''
         // end::triple_single_0[]
 
         // tag::triple_single_1[]
@@ -753,6 +768,9 @@ class SyntaxTest extends CompilableTestSupport {
 
         // tag::unknown_key[]
         assert colors.unknown == null
+
+        def emptyMap = [:]
+        assert emptyMap.anyKey == null
         // end::unknown_key[]
 
         // tag::number_key[]

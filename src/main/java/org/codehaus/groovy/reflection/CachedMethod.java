@@ -31,6 +31,7 @@ import org.codehaus.groovy.runtime.callsite.StaticMetaMethodSite;
 import org.codehaus.groovy.runtime.metaclass.MethodHelper;
 
 import java.io.Serializable;
+import java.lang.annotation.Annotation;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -38,12 +39,15 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Comparator;
 
+import static org.codehaus.groovy.reflection.ReflectionUtils.makeAccessibleInPrivilegedAction;
+
 public class CachedMethod extends MetaMethod implements Comparable {
     public static final CachedMethod[] EMPTY_ARRAY = new CachedMethod[0];
     public final CachedClass cachedClass;
 
     private final Method cachedMethod;
     private int hashCode;
+    private CachedMethod transformedMethod;
 
     private static final MyComparator COMPARATOR = new MyComparator();
 
@@ -75,23 +79,30 @@ public class CachedMethod extends MetaMethod implements Comparable {
         return methods[i];
     }
 
-    protected Class[] getPT() {
+    @Override
+    public Class[] getPT() {
         return cachedMethod.getParameterTypes();
     }
 
+    @Override
     public String getName() {
         return cachedMethod.getName();
     }
 
+    @Override
     public String getDescriptor() {
         return BytecodeHelper.getMethodDescriptor(getReturnType(), getNativeParameterTypes());
     }
 
+    @Override
     public CachedClass getDeclaringClass() {
         return cachedClass;
     }
 
+    @Override
     public final Object invoke(Object object, Object[] arguments) {
+        makeAccessibleIfNecessary();
+
         try {
             AccessPermissionChecker.checkAccessPermission(cachedMethod);
         } catch (CacheAccessControlException ex) {
@@ -112,6 +123,7 @@ public class CachedMethod extends MetaMethod implements Comparable {
         return null;
     }
 
+    @Override
     public Class getReturnType() {
         return cachedMethod.getReturnType();
     }
@@ -120,16 +132,20 @@ public class CachedMethod extends MetaMethod implements Comparable {
         return getParameterTypes().length;
     }
 
+    @Override
     public int getModifiers() {
         return cachedMethod.getModifiers();
     }
 
 
+    @Override
     public String getSignature() {
         return getName() + getDescriptor();
     }
 
     public final Method setAccessible() {
+        makeAccessibleIfNecessary();
+
         AccessPermissionChecker.checkAccessPermission(cachedMethod);
 //        if (queuedToCompile.compareAndSet(false,true)) {
 //            if (isCompilable())
@@ -138,10 +154,20 @@ public class CachedMethod extends MetaMethod implements Comparable {
         return cachedMethod;
     }
 
+    @Override
     public boolean isStatic() {
         return MethodHelper.isStatic(cachedMethod);
     }
 
+    public CachedMethod getTransformedMethod() {
+        return transformedMethod;
+    }
+
+    public void setTransformedMethod(CachedMethod transformedMethod) {
+        this.transformedMethod = transformedMethod;
+    }
+
+    @Override
     public int compareTo(Object o) {
       if (o instanceof CachedMethod)
         return compareToCachedMethod((CachedMethod)o);
@@ -209,11 +235,13 @@ public class CachedMethod extends MetaMethod implements Comparable {
         return 0;
     }
 
+    @Override
     public boolean equals(Object o) {
         return (o instanceof CachedMethod && cachedMethod.equals(((CachedMethod)o).cachedMethod))
                 || (o instanceof Method && cachedMethod.equals(o));
     }
 
+    @Override
     public int hashCode() {
         if (hashCode == 0) {
            hashCode = cachedMethod.hashCode();
@@ -223,6 +251,7 @@ public class CachedMethod extends MetaMethod implements Comparable {
         return hashCode;
     }
 
+    @Override
     public String toString() {
         return cachedMethod.toString();
     }
@@ -321,6 +350,7 @@ public class CachedMethod extends MetaMethod implements Comparable {
     private static class MyComparator implements Comparator, Serializable {
         private static final long serialVersionUID = 8909277090690131302L;
 
+        @Override
         public int compare(Object o1, Object o2) {
             if (o1 instanceof CachedMethod)
                 return ((CachedMethod)o1).compareTo(o2);
@@ -332,10 +362,29 @@ public class CachedMethod extends MetaMethod implements Comparable {
         }
     }
 
+    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+        return cachedMethod.getAnnotation(annotationClass);
+    }
+
+    public boolean isSynthetic() {
+        return cachedMethod.isSynthetic();
+    }
+
     public Method getCachedMethod() {
+        makeAccessibleIfNecessary();
         AccessPermissionChecker.checkAccessPermission(cachedMethod);
         return cachedMethod;
     }
 
-}
+    public boolean canAccessLegally(Class<?> callerClass) {
+        return ReflectionUtils.checkAccessible(callerClass, cachedMethod.getDeclaringClass(), cachedMethod.getModifiers(), false);
+    }
 
+    private boolean makeAccessibleDone = false;
+    private void makeAccessibleIfNecessary() {
+        if (!makeAccessibleDone) {
+            makeAccessibleInPrivilegedAction(cachedMethod);
+            makeAccessibleDone = true;
+        }
+    }
+}

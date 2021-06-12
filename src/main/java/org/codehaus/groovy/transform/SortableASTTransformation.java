@@ -39,12 +39,12 @@ import org.codehaus.groovy.runtime.AbstractComparator;
 import org.codehaus.groovy.runtime.StringGroovyMethods;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.apache.groovy.ast.tools.ClassNodeUtils.addGeneratedInnerClass;
 import static org.apache.groovy.ast.tools.ClassNodeUtils.addGeneratedMethod;
 import static org.codehaus.groovy.ast.ClassHelper.isPrimitiveType;
 import static org.codehaus.groovy.ast.ClassHelper.make;
@@ -74,6 +74,11 @@ import static org.codehaus.groovy.ast.tools.GeneralUtils.varX;
 import static org.codehaus.groovy.ast.tools.GenericsUtils.makeClassSafe;
 import static org.codehaus.groovy.ast.tools.GenericsUtils.makeClassSafeWithGenerics;
 import static org.codehaus.groovy.ast.tools.GenericsUtils.newClass;
+import static org.objectweb.asm.Opcodes.ACC_FINAL;
+import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
+import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
+import static org.objectweb.asm.Opcodes.ACC_STATIC;
+import static org.objectweb.asm.Opcodes.ACC_SYNTHETIC;
 
 /**
  * Injects a set of Comparators and sort methods.
@@ -93,6 +98,7 @@ public class SortableASTTransformation extends AbstractASTTransformation {
     private static final String ARG0 = "arg0";
     private static final String ARG1 = "arg1";
 
+    @Override
     public void visit(ASTNode[] nodes, SourceUnit source) {
         init(nodes, source);
         AnnotationNode annotation = (AnnotationNode) nodes[0];
@@ -189,7 +195,7 @@ public class SortableASTTransformation extends AbstractASTTransformation {
         String className = classNode.getName() + "$" + propName + "Comparator";
         ClassNode superClass = makeClassSafeWithGenerics(AbstractComparator.class, classNode);
         InnerClassNode cmpClass = new InnerClassNode(classNode, className, ACC_PRIVATE | ACC_STATIC, superClass);
-        classNode.getModule().addClass(cmpClass);
+        addGeneratedInnerClass(classNode, cmpClass);
 
         addGeneratedMethod(cmpClass,
                 "compare",
@@ -235,12 +241,8 @@ public class SortableASTTransformation extends AbstractASTTransformation {
             checkComparable(pNode);
         }
         if (includes != null) {
-            Comparator<PropertyNode> includeComparator = new Comparator<PropertyNode>() {
-                public int compare(PropertyNode o1, PropertyNode o2) {
-                    return Integer.compare(includes.indexOf(o1.getName()), includes.indexOf(o2.getName()));
-                }
-            };
-            Collections.sort(properties, includeComparator);
+            Comparator<PropertyNode> includeComparator = Comparator.comparingInt(o -> includes.indexOf(o.getName()));
+            properties.sort(includeComparator);
         }
         return properties;
     }

@@ -18,15 +18,16 @@
  */
 package groovy.transform.stc
 
+import org.codehaus.groovy.ast.ClassHelper
+import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.ast.MethodNode
-import org.codehaus.groovy.control.customizers.CompilationCustomizer
+import org.codehaus.groovy.ast.tools.WideningCategories
+import org.codehaus.groovy.classgen.GeneratorContext
+import org.codehaus.groovy.control.CompilationUnit
 import org.codehaus.groovy.control.CompilePhase
 import org.codehaus.groovy.control.SourceUnit
-import org.codehaus.groovy.classgen.GeneratorContext
-import org.codehaus.groovy.ast.ClassNode
-import org.codehaus.groovy.ast.ClassHelper
+import org.codehaus.groovy.control.customizers.CompilationCustomizer
 import org.codehaus.groovy.transform.stc.StaticTypesMarker
-import org.codehaus.groovy.ast.tools.WideningCategories
 
 /**
  * Unit tests for static type checking : type inference.
@@ -34,10 +35,23 @@ import org.codehaus.groovy.ast.tools.WideningCategories
 class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
 
     void testStringToInteger() {
-        assertScript """
-        def name = "123" // we want type inference
-        name.toInteger() // toInteger() is defined by DGM
-        """
+        assertScript '''
+            def name = "123" // we want type inference
+            name.toInteger() // toInteger() is defined by DGM
+        '''
+    }
+
+    // GROOVY-9935
+    void testIntegerToNumber() {
+        ['def', 'int', 'Integer', 'BigInteger'].each { type ->
+            assertScript """
+                Number f() {
+                    $type n = 10
+                    return n
+                }
+                assert f() == 10
+            """
+        }
     }
 
     void testGStringMethods() {
@@ -48,76 +62,72 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
         '''
     }
 
-    void testAnnotationOnSingleMethod() {
-        GroovyShell shell = new GroovyShell()
-        shell.evaluate '''
-            // calling a method which has got some dynamic stuff in it
+    void testDynamicMethodWithinTypeCheckedClass() {
+        assertScript '''
+            import groovy.transform.*
 
-            import groovy.transform.TypeChecked
-            import groovy.xml.MarkupBuilder
-
-            class Greeter {
-                @TypeChecked
-                String greeting(String name) {
-                    generateMarkup(name.toUpperCase())
+            class C {
+                String m(String s) {
+                    generateMarkup(s.toUpperCase())
                 }
 
-                // MarkupBuilder is dynamic so we won't do typechecking here
-                String generateMarkup(String name) {
+                // MarkupBuilder is dynamic so skip type-checking
+                @TypeChecked(TypeCheckingMode.SKIP)
+                String generateMarkup(String s) {
                     def sw = new StringWriter()
-                    def mkp = new MarkupBuilder()
-                    mkp.html {
+                    def mb = new groovy.xml.MarkupBuilder(sw)
+                    mb.html {
                         body {
-                            div name
+                            div s
                         }
                     }
-                    sw
+                    sw.toString()
                 }
             }
 
-            def g = new Greeter()
-            g.greeting("Guillaume")
-
+            def c = new C()
+            def xml = c.m('x')
+            // TODO: check XML
         '''
     }
 
     void testInstanceOf() {
-        assertScript """
-        Object o
-        if (o instanceof String) o.toUpperCase()
-        """
+        assertScript '''
+            Object o
+            if (o instanceof String) o.toUpperCase()
+        '''
     }
 
     void testEmbeddedInstanceOf() {
-        assertScript """
-        Object o
-        if (o instanceof Object) {
-            if (o instanceof String) {
-                o.toUpperCase()
+        assertScript '''
+            Object o
+            if (o instanceof Object) {
+                if (o instanceof String) {
+                    o.toUpperCase()
+                }
             }
-        }
-        """
+        '''
     }
 
     void testEmbeddedInstanceOf2() {
-        assertScript """
-        Object o
-        if (o instanceof String) {
-            if (true) {
-                o.toUpperCase()
+        assertScript '''
+            Object o
+            if (o instanceof String) {
+                if (true) {
+                    o.toUpperCase()
+                }
             }
-        }
-        """
+        '''
     }
 
     void testEmbeddedInstanceOf3() {
         shouldFailWithMessages '''
-        Object o
-        if (o instanceof String) {
-            if (o instanceof Object) { // causes the inferred type of 'o' to be overwritten
-                o.toUpperCase()
+            Object o
+            if (o instanceof String) {
+                if (o instanceof Object) { // causes the inferred type of 'o' to be overwritten
+                    o.toUpperCase()
+                }
             }
-        }
         ''', 'Cannot find matching method java.lang.Object#toUpperCase()'
     }
 
@@ -137,9 +147,36 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
             if (o instanceof String) {
                o.toUpperCase()
             } else {
-                o.toUpperCase() // ensure that type information is lost in else()
+                o.toUpperCase() // ensure that type information is lost in else
             }
         ''', 'Cannot find matching method java.lang.Object#toUpperCase()'
+    }
+
+    // GROOVY-9454
+    void testInstanceOfOnGenericProperty() {
+        assertScript '''
+            interface Face {
+            }
+            class Impl implements Face {
+                String something
+            }
+            class Task<R extends Face> implements java.util.concurrent.Callable<String> {
+                R request
+
+                @Override
+                String call() {
+                    if (request instanceof Impl) {
+                        def thing = request.something // No such property: something for class: R
+                        def lower = thing.toLowerCase()
+                    } else {
+                        // ...
+                        return null
+                    }
+                }
+            }
+            def task = new Task<Impl>(request: new Impl(something: 'Hello World'))
+            assert task.call() == 'hello world'
+        '''
     }
 
     void testMultipleInstanceOf() {
@@ -152,7 +189,6 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
                void foo() { println 'ok' }
                void foo2() { println 'ok 2' }
             }
-
 
             def o = new A()
 
@@ -167,7 +203,6 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
             if (o instanceof A || o instanceof B) {
               o.foo()
             }
-
         '''
     }
 
@@ -176,17 +211,145 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
             class A {
                int foo() { 1 }
             }
-
             class B {
                int foo2() { 2 }
             }
-
-
             def o = new A()
-
             int result = o instanceof A?o.foo():(o instanceof B?o.foo2():3)
-
         '''
+    }
+
+    // GROOVY-8523
+    void testNotInstanceof1() {
+        assertScript '''
+            class Test1 {
+                static int checkRes = 0
+
+                static void f1(Object var1) {
+                    if (!(var1 instanceof Runnable)){
+                        checkRes = 3
+                        return
+                    }
+                    f2(var1)
+                }
+
+                static void f2(Runnable var2) {
+                    checkRes = 4
+                }
+            }
+
+            Runnable r = {}
+            Test1.f1(r)
+            assert Test1.checkRes == 4
+            Test1.f1(42)
+            assert Test1.checkRes == 3
+        '''
+    }
+
+    // GROOVY-8523
+    void testNotInstanceOf2() {
+        assertScript '''
+            class Test1 {
+                static int checkRes = 0
+
+                static void f1(Object var1) {
+                    if (var1 !instanceof Runnable){
+                        checkRes = 3
+                        return
+                    }
+                    f2(var1)
+                }
+
+                static void f2(Runnable var2) {
+                    checkRes = 4
+                }
+            }
+
+            Runnable r = {}
+            Test1.f1(r)
+            assert Test1.checkRes == 4
+            Test1.f1(42)
+            assert Test1.checkRes == 3
+        '''
+    }
+
+    // GROOVY-8523
+    void testNotInstanceOf3() {
+        assertScript '''
+            class Test1 {
+                static int checkRes = 0
+
+                static void f1(Object var1) {
+                    if (!(var1 instanceof Runnable)){
+                        checkRes = 3
+                        return
+                    }
+                    if (!(var1 instanceof List)){
+                        checkRes = 5
+                        return
+                    }
+                    f2(var1)
+                }
+
+                static void f2(Runnable var2) {
+                    checkRes = 4
+                }
+            }
+
+            Runnable r = {}
+            Test1.f1(r)
+            assert Test1.checkRes == 5
+        '''
+    }
+
+    // GROOVY-8523
+    void testNotInstanceOf4() {
+        assertScript '''
+            class Test1 {
+                static int checkRes = 0
+
+                static void f1(Object var1) {
+                    if (!(var1 instanceof Runnable)){
+                        checkRes = 3
+                        return
+                    }
+                    if (!(var1 instanceof Thread)){
+                        checkRes = 5
+                        return
+                    }
+                    f2(var1)
+                }
+
+                static void f2(Runnable var2) {
+                    checkRes = 4
+                }
+            }
+
+            Runnable r = {}
+            Test1.f1(r)
+            assert Test1.checkRes == 5
+        '''
+    }
+
+    // GROOVY-9455
+    void testNotInstanceOf5() {
+        shouldFailWithMessages '''
+            void test(object) {
+                if (!(object instanceof String)) {
+                    object.toUpperCase()
+                }
+            }
+        ''', 'Cannot find matching method java.lang.Object#toUpperCase()'
+    }
+
+    void testNotInstanceOf6() {
+        shouldFailWithMessages '''
+            void test(object) {
+                if (object !instanceof String) {
+                    object.toUpperCase()
+                }
+            }
+        ''', 'Cannot find matching method java.lang.Object#toUpperCase()'
     }
 
     void testShouldNotAllowDynamicVariable() {
@@ -225,7 +388,7 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
         '''
     }
 
-    void testInstanceOfInferenceWithField() {
+    void testInstanceOfInferenceWithProperty1() {
         assertScript '''
             class A {
                 int x
@@ -237,7 +400,7 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
         '''
     }
 
-    void testInstanceOfInferenceWithFieldAndAssignment() {
+    void testInstanceOfInferenceWithProperty2() {
         shouldFailWithMessages '''
             class A {
                 int x
@@ -249,7 +412,7 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
         ''', 'Cannot assign value of type java.lang.String to variable of type int'
     }
 
-    void testInstanceOfInferenceWithMissingField() {
+    void testInstanceOfInferenceWithMissingProperty() {
         shouldFailWithMessages '''
             class A {
                 int x
@@ -259,6 +422,69 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
                 a.y = 2
             }
         ''', 'No such property: y for class: A'
+    }
+
+    // GROOVY-9967
+    void testInstanceOfInferenceWithSubclassProperty() {
+        assertScript '''
+            class A {
+                int i
+            }
+            class B extends A {
+                String s = 'foo'
+            }
+
+            String scenario1(x) {
+                (x instanceof String) ? x.toLowerCase() : 'bar'
+            }
+            String scenario2(B x) {
+                x.s
+            }
+            String scenario2a(B x) {
+                x.getS()
+            }
+            String scenario3(B x) {
+                (x instanceof B) ? x.s : 'bar'
+            }
+            String scenario3a(B x) {
+                (x instanceof B) ? x.getS() : 'bar'
+            }
+            String scenario4(A x) {
+                (x instanceof B) ? x.s : 'bar' // Access to A#s is forbidden
+            }
+            String scenario4a(A x) {
+                (x instanceof B) ? x.getS() : 'bar'
+            }
+
+            assert scenario1(null) == 'bar'
+            assert scenario1('Foo') == 'foo'
+            assert scenario2(new B()) == 'foo'
+            assert scenario2a(new B()) == 'foo'
+            assert scenario3(new B()) == 'foo'
+            assert scenario3a(new B()) == 'foo'
+
+            assert scenario4(new A()) == 'bar'
+            assert scenario4(new B()) == 'foo'
+            assert scenario4a(new A()) == 'bar'
+            assert scenario4a(new B()) == 'foo'
+        '''
+    }
+
+    // GROOVY-9953
+    void testInstanceOfPropagatesToLocalVariable() {
+        assertScript '''
+            class A {
+            }
+            A test(Object x) {
+                if (x instanceof A) {
+                    def y = x
+                    return y
+                } else {
+                    new A()
+                }
+            }
+            new A().with { assert test(it) === it }
+        '''
     }
 
     void testShouldNotFailWithWith() {
@@ -374,7 +600,6 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
         '''
     }
 
-
    void testCallMethodInWithContextAndShadowing() {
        // make sure that the method which is found in 'with' is actually the one from class A
        // which returns a String
@@ -390,6 +615,7 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
                 method().toUpperCase()
             }
         '''
+
        // check that if we switch signatures, it fails
        shouldFailWithMessages '''
             class A {
@@ -423,7 +649,9 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
         '''
         def inft = method.code.statements[0].expression.leftExpression.getNodeMetaData(StaticTypesMarker.DECLARATION_INFERRED_TYPE)
         assert inft instanceof WideningCategories.LowestUpperBoundClassNode
-        assert inft.interfaces as Set == [ClassHelper.make(Comparable), ClassHelper.make(Serializable)] as Set
+        [Comparable, Serializable].each {
+            assert ClassHelper.make(it) in inft.interfaces
+        }
 
         assertScript '''
             void method() {
@@ -452,8 +680,6 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
             }
         '''
         assert method.code.statements[0].expression.leftExpression.getNodeMetaData(StaticTypesMarker.DECLARATION_INFERRED_TYPE) == ClassHelper.make(HashSet)
-
-
     }
 
     void testChooseMethodWithTypeInference() {
@@ -479,7 +705,7 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
             keys*.toUpperCase()
             values*.toUpperCase()
         '''
-        
+
         shouldFailWithMessages '''
             List values = [x:1,y:2,z:3]*.value
             values*.toUpperCase()
@@ -572,7 +798,8 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
     }
 
     void testSwitchCaseAnalysis() {
-        assertScript '''import org.codehaus.groovy.ast.tools.WideningCategories.LowestUpperBoundClassNode as LUB
+        assertScript '''
+            import org.codehaus.groovy.ast.tools.WideningCategories.LowestUpperBoundClassNode as LUB
 
             def method(int x) {
                 def returnValue= new Date()
@@ -598,30 +825,30 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
 
     void testGroovy6215() {
         assertScript '''
-                def processNumber(int x) {
-                    def value = getValueForNumber(x)
-                    value
-                }
+            def processNumber(int x) {
+                def value = getValueForNumber(x)
+                value
+            }
 
-                def getValueForNumber(int x) {
-                    def valueToReturn
-                    switch(x) {
-                        case 1:
-                            valueToReturn = 'One'
-                            break
-                        case 2:
-                            valueToReturn = []
-                            valueToReturn << 'Two'
-                            break
-                    }
-                    valueToReturn
+            def getValueForNumber(int x) {
+                def valueToReturn
+                switch(x) {
+                    case 1:
+                        valueToReturn = 'One'
+                        break
+                    case 2:
+                        valueToReturn = []
+                        valueToReturn << 'Two'
+                        break
                 }
-                def v1 = getValueForNumber(1)
-                def v2 = getValueForNumber(2)
-                def v3 = getValueForNumber(3)
-                assert v1 == 'One'
-                assert v2 == ['Two']
-                assert v3 == null
+                valueToReturn
+            }
+            def v1 = getValueForNumber(1)
+            def v2 = getValueForNumber(2)
+            def v3 = getValueForNumber(3)
+            assert v1 == 'One'
+            assert v2 == ['Two']
+            assert v3 == null
         '''
     }
 
@@ -676,29 +903,29 @@ class TypeInferenceSTCTest extends StaticTypeCheckingTestCase {
     // GROOVY-6522
     void testInferenceWithImplicitClosureCoercion() {
         assertScript '''
-interface CustomCallable<T> {
-    T call()
-}
+            interface CustomCallable<T> {
+                T call()
+            }
 
-class Thing {
-    static <T> T customType(CustomCallable<T> callable) {
-        callable.call()
-    }
+            class Thing {
+                static <T> T customType(CustomCallable<T> callable) {
+                    callable.call()
+                }
 
-    @ASTTest(phase=INSTRUCTION_SELECTION,value={
-        lookup('test').each {
-            def call = it.expression
-            def irt = call.getNodeMetaData(INFERRED_TYPE)
-            assert irt == LIST_TYPE
-        }
-    })
-    static void run() {
-        test: customType { [] } // return type is not inferred - fails compile
-    }
-}
+                @ASTTest(phase=INSTRUCTION_SELECTION,value={
+                    lookup('test').each {
+                        def call = it.expression
+                        def irt = call.getNodeMetaData(INFERRED_TYPE)
+                        assert irt == LIST_TYPE
+                    }
+                })
+                static void run() {
+                    test: customType { [] } // return type is not inferred - fails compile
+                }
+            }
 
-Thing.run()
-'''
+            Thing.run()
+        '''
     }
 
     void testInferenceWithImplicitClosureCoercionAndArrayReturn() {
@@ -767,14 +994,181 @@ Thing.run()
     // GROOVY-6574
     void testShouldInferPrimitiveBoolean() {
         assertScript '''
-def foo(Boolean o) {
-  @ASTTest(phase=INSTRUCTION_SELECTION,value={
-    assert node.getNodeMetaData(INFERRED_TYPE) == boolean_TYPE
-  })
-  boolean b = o
-  println b
-}
-'''
+            def foo(Boolean o) {
+                @ASTTest(phase=INSTRUCTION_SELECTION,value={
+                    assert node.getNodeMetaData(INFERRED_TYPE) == boolean_TYPE
+                })
+                boolean b = o
+                println b
+            }
+        '''
+    }
+
+    // GROOVY-7549
+    void testShouldKeepDeclTypeWhenAssignedInaccessibleT() {
+        config.targetDirectory = File.createTempDir()
+        def parentDir = File.createTempDir()
+        try {
+            new File(parentDir, 'a').mkdir()
+            new File(parentDir, 'b').mkdir()
+
+            def a = new File(parentDir, 'a/Main.groovy')
+            a.write '''
+                package a
+                class Main {
+                  static main(args) {
+                    Face f = b.Maker.make() // returns b.Impl
+                    assert f.meth() == 1234
+                  }
+                }
+            '''
+            def b = new File(parentDir, 'a/Face.groovy')
+            b.write '''
+                package a
+                interface Face {
+                  int meth()
+                }
+            '''
+            def c = new File(parentDir, 'b/Impl.groovy')
+            c.write '''
+                package b
+                @groovy.transform.PackageScope
+                class Impl implements a.Face {
+                  int meth() {
+                    1234
+                  }
+                }
+            '''
+            def d = new File(parentDir, 'b/Maker.groovy')
+            d.write '''
+                package b
+                class Maker {
+                  static Impl make() { // probably should return a.Face
+                    new Impl()
+                  }
+                }
+            '''
+
+            def loader = new GroovyClassLoader(this.class.classLoader)
+            def cu = new CompilationUnit(config, null, loader)
+            cu.addSources(a, b, c, d)
+            cu.compile()
+
+            loader.addClasspath(config.targetDirectory.absolutePath)
+            loader.loadClass('a.Main', true).main()
+        } finally {
+            config.targetDirectory.deleteDir()
+            parentDir.deleteDir()
+        }
+    }
+
+    // GROOVY-5655
+    void testByteArrayInference() {
+        assertScript '''
+            @ASTTest(phase=INSTRUCTION_SELECTION, value={
+                assert node.getNodeMetaData(INFERRED_TYPE) == byte_TYPE.makeArray()
+            })
+            def b = "foo".bytes
+            new String(b)
+        '''
+    }
+
+    // GROOVY-
+    void testGetAnnotationFails() {
+        assertScript '''
+            import groovy.transform.*
+            import java.lang.annotation.*
+
+            @Retention(RetentionPolicy.RUNTIME)
+            @Target([ElementType.FIELD])
+            @interface Ann1 {}
+
+            @Retention(RetentionPolicy.RUNTIME)
+            @Target([ElementType.FIELD])
+            @interface Ann2 {}
+
+            class A {
+                @Ann2
+                String field
+            }
+
+            @ASTTest(phase=INSTRUCTION_SELECTION,value={
+                lookup('second').each {
+                  assert it.expression.getNodeMetaData(INFERRED_TYPE).name == 'Ann2'
+                }
+            })
+            def doit(obj, String propName) {
+                def field = obj.getClass().getDeclaredField(propName)
+                if (field) {
+                    @ASTTest(phase=INSTRUCTION_SELECTION,value={
+                        assert node.getNodeMetaData(INFERRED_TYPE).name == 'Ann1'
+                    })
+                    def annotation = field.getAnnotation Ann1
+                    if(true) {
+                        second: annotation = field.getAnnotation Ann2
+                    }
+                    return annotation
+                }
+                return null
+            }
+
+            assert Ann2.isAssignableFrom(doit(new A(), "field").class)
+        '''
+    }
+
+    // GROOVY-9077
+    void testInferredTypeForPropertyThatResolvesToMethod() {
+        assertScript '''
+            import groovy.transform.*
+            import static org.codehaus.groovy.transform.stc.StaticTypesMarker.DIRECT_METHOD_CALL_TARGET
+
+            @CompileStatic
+            void meth() {
+                def items = [1, 2] as LinkedList
+
+                @ASTTest(phase=INSTRUCTION_SELECTION, value={
+                    node = node.rightExpression
+                    assert node.class.name.contains('PropertyExpression')
+                    def target = node.getNodeMetaData(DIRECT_METHOD_CALL_TARGET)
+                    assert target != null
+                    assert target.declaringClass.name == 'java.util.LinkedList'
+                })
+                def one = items.first
+
+                @ASTTest(phase=CLASS_GENERATION, value={
+                    node = node.rightExpression
+                    assert node.class.name.contains('MethodCallExpression')
+                    def target = node.getNodeMetaData(DIRECT_METHOD_CALL_TARGET)
+                    assert target != null
+                    assert target.declaringClass.name == 'java.util.LinkedList'
+                })
+                def alsoOne = items.peek()
+            }
+
+            meth()
+        '''
+    }
+
+    // GROOVY-10089
+    void testInferredTypeForMapOfList() {
+        assertScript '''
+            void test(... attributes) {
+                List one = [
+                    [id:'x', options:[count:1]]
+                ]
+                List two = attributes.collect {
+                    def node = Collections.singletonMap('children', one)
+                    if (node) {
+                        node = node.get('children').find { child -> child['id'] == 'x' }
+                    }
+                    // inferred type of node must be something like Map<String,List<...>>
+
+                    [id: it['id'], name: node['name'], count: node['options']['count']]
+                    //                                        ^^^^^^^^^^^^^^^ GroovyCastException (map ctor for Collection)
+                }
+            }
+
+            test( [id:'x'] )
+        '''
     }
 }
-

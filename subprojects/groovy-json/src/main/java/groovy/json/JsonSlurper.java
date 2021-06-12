@@ -18,6 +18,7 @@
  */
 package groovy.json;
 
+import groovy.transform.NamedParam;
 import org.apache.groovy.json.internal.JsonFastParser;
 import org.apache.groovy.json.internal.JsonParserCharArray;
 import org.apache.groovy.json.internal.JsonParserLax;
@@ -30,6 +31,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -196,7 +199,7 @@ public class JsonSlurper {
      * @return a data structure of lists and maps
      */
     public Object parseText(String text) {
-        if (text == null || "".equals(text)) {
+        if (text == null || text.isEmpty()) {
             throw new IllegalArgumentException("Text must not be null or empty");
         }
         return createParser().parse(text);
@@ -335,6 +338,27 @@ public class JsonSlurper {
     }
 
     /**
+     * Parse a JSON data structure from content within a given Path.
+     *
+     * @param path {@link Path} containing JSON content
+     * @return a data structure of lists and maps
+     */
+    public Object parse(Path path) throws IOException {
+        return parse(Files.newInputStream(path));
+    }
+
+    /**
+     * Parse a JSON data structure from content within a given Path.
+     *
+     * @param path {@link Path} containing JSON content
+     * @param charset the charset for this File
+     * @return a data structure of lists and maps
+     */
+    public Object parse(Path path, String charset) throws IOException {
+        return parse(Files.newInputStream(path), charset);
+    }
+
+    /**
      * Parse a JSON data structure from content within a given File.
      *
      * @param file File containing JSON content
@@ -396,11 +420,27 @@ public class JsonSlurper {
      * @return a data structure of lists and maps
      * @since 2.2.0
      */
-    public Object parse(Map params, URL url) {
+    public Object parse(
+            @NamedParam(value = "connectTimeout", type = Integer.class)
+            @NamedParam(value = "readTimeout", type = Integer.class)
+            @NamedParam(value = "useCaches", type = Boolean.class)
+            @NamedParam(value = "allowUserInteraction", type = Boolean.class)
+            @NamedParam(value = "requestProperties", type = Map.class)
+            Map<String, ?> params,
+            URL url
+    ) {
         return parseURL(url, params);
     }
 
-    private Object parseURL(URL url, Map params) {
+    private Object parseURL(
+            URL url,
+            @NamedParam(value = "connectTimeout", type = Integer.class)
+            @NamedParam(value = "readTimeout", type = Integer.class)
+            @NamedParam(value = "useCaches", type = Boolean.class)
+            @NamedParam(value = "allowUserInteraction", type = Boolean.class)
+            @NamedParam(value = "requestProperties", type = Map.class)
+            Map<String, ?> params
+    ) {
         Reader reader = null;
         try {
             if (params == null || params.isEmpty()) {

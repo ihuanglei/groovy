@@ -18,10 +18,10 @@
  */
 package groovy.swing.binding;
 
-import org.codehaus.groovy.binding.AbstractFullBinding;
-import org.codehaus.groovy.binding.PropertyBinding;
-import org.codehaus.groovy.binding.SourceBinding;
-import org.codehaus.groovy.binding.TargetBinding;
+import org.apache.groovy.swing.binding.AbstractFullBinding;
+import org.apache.groovy.swing.binding.PropertyBinding;
+import org.apache.groovy.swing.binding.SourceBinding;
+import org.apache.groovy.swing.binding.TargetBinding;
 
 public abstract class AbstractSyntheticBinding extends AbstractFullBinding {
     boolean bound;
@@ -36,6 +36,7 @@ public abstract class AbstractSyntheticBinding extends AbstractFullBinding {
         setTargetBinding(target);
     }
 
+    @Override
     public void bind() {
         if (!bound) {
             try {
@@ -52,6 +53,7 @@ public abstract class AbstractSyntheticBinding extends AbstractFullBinding {
         }
     }
 
+    @Override
     public void unbind() {
         if (bound) {
             // fail dirty, no checks
@@ -63,6 +65,7 @@ public abstract class AbstractSyntheticBinding extends AbstractFullBinding {
     protected abstract void syntheticBind();
     protected abstract void syntheticUnbind();
 
+    @Override
     public void rebind() {
         if (bound) {
             unbind();
@@ -70,6 +73,7 @@ public abstract class AbstractSyntheticBinding extends AbstractFullBinding {
         }
     }
 
+    @Override
     public void setSourceBinding(SourceBinding source) {
         if (!(source instanceof PropertyBinding)) {
             throw new IllegalArgumentException("Only PropertySourceBindings are accepted");
@@ -85,6 +89,7 @@ public abstract class AbstractSyntheticBinding extends AbstractFullBinding {
         super.setSourceBinding(source);
     }
 
+    @Override
     public void setTargetBinding(TargetBinding target) {
         super.setTargetBinding(target);
     }

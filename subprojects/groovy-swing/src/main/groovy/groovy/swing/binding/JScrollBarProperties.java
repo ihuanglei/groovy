@@ -18,11 +18,11 @@
  */
 package groovy.swing.binding;
 
-import org.codehaus.groovy.binding.FullBinding;
-import org.codehaus.groovy.binding.PropertyBinding;
-import org.codehaus.groovy.binding.SourceBinding;
-import org.codehaus.groovy.binding.TargetBinding;
-import org.codehaus.groovy.binding.TriggerBinding;
+import org.apache.groovy.swing.binding.FullBinding;
+import org.apache.groovy.swing.binding.PropertyBinding;
+import org.apache.groovy.swing.binding.SourceBinding;
+import org.apache.groovy.swing.binding.TargetBinding;
+import org.apache.groovy.swing.binding.TriggerBinding;
 
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
@@ -40,6 +40,7 @@ public class JScrollBarProperties {
         Map<String, TriggerBinding> result = new HashMap<String, TriggerBinding>();
         result.put(JScrollBar.class.getName() + "#value",
                 new TriggerBinding() {
+                    @Override
                     public FullBinding createBinding(SourceBinding source, TargetBinding target) {
                         return new JScrollBarValueBinding((PropertyBinding) source, target);
                     }
@@ -57,28 +58,33 @@ class JScrollBarValueBinding extends AbstractSyntheticBinding implements Propert
         super(source, target, JScrollBar.class, "value");
     }
 
+    @Override
     public synchronized void syntheticBind() {
         boundScrollBar = (JScrollBar) ((PropertyBinding)sourceBinding).getBean();
         boundScrollBar.addPropertyChangeListener("model", this);
         boundScrollBar.getModel().addChangeListener(this);
     }
 
+    @Override
     public synchronized void syntheticUnbind() {
         boundScrollBar.removePropertyChangeListener("model", this);
         boundScrollBar.getModel().removeChangeListener(this);
         boundScrollBar = null;
     }
 
+    @Override
     public void setTargetBinding(TargetBinding target) {
         super.setTargetBinding(target);
     }
 
+    @Override
     public void propertyChange(PropertyChangeEvent event) {
         update();
         ((BoundedRangeModel) event.getOldValue()).removeChangeListener(this);
         ((BoundedRangeModel) event.getNewValue()).addChangeListener(this);
     }
 
+    @Override
     public void stateChanged(ChangeEvent e) {
         update();
     }

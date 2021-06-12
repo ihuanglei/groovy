@@ -18,6 +18,8 @@
  */
 package groovy.lang
 
+import groovy.test.GroovyTestCase
+
 /**
  * Tests maps of closures coerced to classes by asType()
  */
@@ -89,28 +91,29 @@ class MapOfClosureTest extends GroovyTestCase {
 
         assert ["map foo"] as String[] == c.foo(1, ['a', 'b'], [0.2, 0.3] as Double[])
     }
-}
 
-abstract class A {
-    protected prot() { "prot" }
+    //--------------------------------------------------------------------------
 
-    def pub() { "pub" }
+    static abstract class A {
+        protected prot() { "prot" }
 
-    abstract abstractMethod()
-}
+        def pub() { "pub" }
 
-class B extends A {
-    protected child() { "child" }
+        abstract abstractMethod()
+    }
 
-    def abstractMethod() { "abstract" }
-}
+    static class B extends A {
+        protected child() { "child" }
 
-class C {
-    String[] foo(int a, List b, Double[] c) { ["foo"] as String[] }
-}
+        def abstractMethod() { "abstract" }
+    }
 
-interface MultiMethodInterface {
-    String methodOne()
+    static class C {
+        String[] foo(int a, List b, Double[] c) { ["foo"] as String[] }
+    }
 
-    String methodTwo()
+    interface MultiMethodInterface {
+        String methodOne()
+        String methodTwo()
+    }
 }

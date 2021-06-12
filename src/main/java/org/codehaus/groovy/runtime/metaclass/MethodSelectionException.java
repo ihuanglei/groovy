@@ -54,6 +54,7 @@ public class MethodSelectionException extends GroovyRuntimeException {
         this.methods = methods;
     }
 
+    @Override
     public String getMessage() {
         StringBuilder buffer = new StringBuilder();
         buffer.append("Could not find which method ").append(methodName);
@@ -91,11 +92,11 @@ public class MethodSelectionException extends GroovyRuntimeException {
                 appendClassNames(buffer,method.getNativeParameterTypes());
             }
             else {
-                CachedConstructor method = (CachedConstructor) methodOrConstructor;
-                buffer.append(Modifier.toString(method.cachedConstructor.getModifiers()));
-                buffer.append(" ").append(method.cachedConstructor.getDeclaringClass().getName());
+                CachedConstructor constructor = (CachedConstructor) methodOrConstructor;
+                buffer.append(Modifier.toString(constructor.getModifiers()));
+                buffer.append(" ").append(constructor.getDeclaringClass().getName());
                 buffer.append("#<init>");
-                appendClassNames(buffer,method.getNativeParameterTypes());
+                appendClassNames(buffer,constructor.getNativeParameterTypes());
             }
         }
     }

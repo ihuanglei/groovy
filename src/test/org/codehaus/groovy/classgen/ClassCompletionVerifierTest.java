@@ -20,6 +20,7 @@ package org.codehaus.groovy.classgen;
 
 import org.codehaus.groovy.ast.ClassHelper;
 import org.codehaus.groovy.ast.ClassNode;
+import org.codehaus.groovy.ast.FieldNode;
 import org.codehaus.groovy.ast.MethodNode;
 import org.codehaus.groovy.ast.Parameter;
 import org.codehaus.groovy.control.SourceUnit;
@@ -81,7 +82,7 @@ public class ClassCompletionVerifierTest extends TestSupport {
 
     public void testDetectsAbstractPrivateMethod() throws Exception {
         ClassNode node = new ClassNode("X", ACC_ABSTRACT, ClassHelper.OBJECT_TYPE);
-        node.addMethod(new MethodNode("y", ACC_PRIVATE | ACC_ABSTRACT, ClassHelper.VOID_TYPE, new Parameter[0], ClassNode.EMPTY_ARRAY, null));
+        node.addMethod(new MethodNode("y", ACC_PRIVATE | ACC_ABSTRACT, ClassHelper.VOID_TYPE, Parameter.EMPTY_ARRAY, ClassNode.EMPTY_ARRAY, null));
         verifier.visitClass(node);
         checkErrorMessage(EXPECTED_ABSTRACT_PRIVATE_METHOD_ERROR_MESSAGE);
     }
@@ -173,6 +174,15 @@ public class ClassCompletionVerifierTest extends TestSupport {
         addDummyConstructor(node);
         verifier.visitClass(node);
         checkErrorCount(0);
+    }
+
+    public void testDetectsInvalidFieldModifiers() {
+        ClassNode foo = new ClassNode("foo", ACC_PUBLIC, ClassHelper.OBJECT_TYPE);
+        FieldNode bar = new FieldNode("bar", (ACC_FINAL | ACC_VOLATILE), ClassHelper.STRING_TYPE, foo, null);
+        foo.addField(bar);
+        verifier.visitClass(foo);
+        checkErrorCount(1);
+        checkErrorMessage("Illegal combination of modifiers, final and volatile, for field 'bar'");
     }
 
     private void addDummyConstructor(ClassNode node) {

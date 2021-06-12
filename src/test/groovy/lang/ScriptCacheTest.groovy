@@ -18,6 +18,8 @@
  */
 package groovy.lang
 
+import groovy.test.GroovyTestCase
+
 class ScriptCacheTest extends GroovyTestCase {
 
     def packageName = "scriptcachetest"
@@ -27,7 +29,7 @@ class ScriptCacheTest extends GroovyTestCase {
     def packageDir
 
     public void setUp() {
-        packageDir = new File(new File("target"), packageName)
+        packageDir = new File(new File("build"), packageName)
         packageDir.mkdir()
         packageDir.deleteOnExit()
         file = File.createTempFile("TestScriptCache", ".groovy", packageDir)

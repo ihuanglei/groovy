@@ -18,12 +18,13 @@
  */
 package groovy.lang
 
+import groovy.test.GroovyTestCase
 import org.codehaus.groovy.control.CompilerConfiguration
 
 class ClassReloadingTest extends GroovyTestCase {
 
     void testReloading() {
-        def file = File.createTempFile("TestReload", ".groovy", new File("target"))
+        def file = File.createTempFile("TestReload", ".groovy", buildDir())
         file.deleteOnExit()
         def className = file.name - ".groovy"
 
@@ -61,6 +62,10 @@ class ClassReloadingTest extends GroovyTestCase {
         } finally {
             file.delete()
         }
+    }
+
+    private File buildDir() {
+        new File("build")
     }
 
     void testReloadingInStringStringVersion() {

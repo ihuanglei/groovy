@@ -18,34 +18,48 @@
  */
 package groovy.xml;
 
-import groovy.lang.Closure;
+import groovy.namespace.QName;
 import groovy.util.BuilderSupport;
 import groovy.util.IndentPrinter;
+import groovy.xml.markupsupport.DoubleQuoteFilter;
+import groovy.xml.markupsupport.SingleQuoteFilter;
+import groovy.xml.markupsupport.StandardXmlAttributeFilter;
+import groovy.xml.markupsupport.StandardXmlFilter;
 import org.codehaus.groovy.runtime.StringGroovyMethods;
 
 import java.io.PrintWriter;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+
+import static org.codehaus.groovy.vmplugin.v8.PluginDefaultGroovyMethods.orOptional;
 
 /**
  * A helper class for creating XML or HTML markup.
  * The builder supports various 'pretty printed' formats.
  * <p>
  * Example:
- * <pre>new MarkupBuilder().root {
+ * <pre>
+ * new MarkupBuilder().root {
  *   a( a1:'one' ) {
- *     b { mkp.yield( '3 < 5' ) }
+ *     b { mkp.yield( '3 {@code <} 5' ) }
  *     c( a2:'two', 'blah' )
  *   }
- * }</pre>
+ * }
+ * </pre>
  * Will print the following to System.out:
- * <pre>&lt;root&gt;
+ * <pre>
+ * &lt;root&gt;
  *   &lt;a a1='one'&gt;
  *     &lt;b&gt;3 &amp;lt; 5&lt;/b&gt;
  *     &lt;c a2='two'&gt;blah&lt;/c&gt;
  *   &lt;/a&gt;
- * &lt;/root&gt;</pre>
+ * &lt;/root&gt;
+ * </pre>
  * Notes:
  * <ul>
  *    <li><code>mkp</code> is a special namespace used to escape
@@ -56,6 +70,8 @@ import java.util.Map;
  * </ul>
  */
 public class MarkupBuilder extends BuilderSupport {
+    public enum CharFilter { XML_STRICT, XML_ALL, NONE }
+
     private IndentPrinter out;
     private boolean nospace;
     private int state;
@@ -65,6 +81,15 @@ public class MarkupBuilder extends BuilderSupport {
     private boolean omitEmptyAttributes = false;
     private boolean expandEmptyElements = false;
     private boolean escapeAttributes = true;
+    private List<Function<Character, Optional<String>>> additionalFilters = null;
+
+    public List<Function<Character, Optional<String>>> getAdditionalFilters() {
+        return additionalFilters;
+    }
+
+    public void setAdditionalFilters(List<Function<Character, Optional<String>>> additionalFilters) {
+        this.additionalFilters = additionalFilters;
+    }
 
     /**
      * Returns the escapeAttributes property value.
@@ -221,6 +246,7 @@ public class MarkupBuilder extends BuilderSupport {
         return this.out;
     }
 
+    @Override
     protected void setParent(Object parent, Object child) {
     }
 
@@ -265,11 +291,12 @@ public class MarkupBuilder extends BuilderSupport {
             this.nodeIsEmpty = false;
             out.print(">");
         }
-        if (state == 2 || state == 3) {
+        if (state == 0 || state == 2 || state == 3) {
             out.print(escaping ? escapeElementContent(value) : value);
         }
     }
 
+    @Override
     protected Object createNode(Object name) {
         Object theName = getName(name);
         toState(1, theName);
@@ -277,6 +304,7 @@ public class MarkupBuilder extends BuilderSupport {
         return theName;
     }
 
+    @Override
     protected Object createNode(Object name, Object value) {
         Object theName = getName(name);
         if (value == null) {
@@ -290,6 +318,7 @@ public class MarkupBuilder extends BuilderSupport {
         }
     }
 
+    @Override
     protected Object createNode(Object name, Map attributes, Object value) {
         Object theName = getName(name);
         toState(1, theName);
@@ -311,7 +340,7 @@ public class MarkupBuilder extends BuilderSupport {
             }
         }
         if (value != null) {
-            yield(value.toString(), true);
+            this.yield(value.toString(), true);
         } else {
             nodeIsEmpty = true;
         }
@@ -319,10 +348,12 @@ public class MarkupBuilder extends BuilderSupport {
         return theName;
     }
 
+    @Override
     protected Object createNode(Object name, Map attributes) {
         return createNode(name, attributes, null);
     }
 
+    @Override
     protected void nodeCompleted(Object parent, Object node) {
         toState(3, node);
         out.flush();
@@ -332,6 +363,7 @@ public class MarkupBuilder extends BuilderSupport {
         out.print(node == null ? "null" : node.toString());
     }
 
+    @Override
     protected Object getName(String methodName) {
         return super.getName(methodName);
     }
@@ -384,53 +416,39 @@ public class MarkupBuilder extends BuilderSupport {
      *         have been replaced with the corresponding XML entities.
      */
     private String escapeXmlValue(String value, boolean isAttrValue) {
-        if (value == null)
+        if (value == null) {
             throw new IllegalArgumentException();
-        return StringGroovyMethods.collectReplacements(value, new ReplacingClosure(isAttrValue, useDoubleQuotes));
+        }
+        List<Function<Character, Optional<String>>> transforms = new ArrayList<>();
+        transforms.add(new DefaultXmlEscapingFunction(isAttrValue, useDoubleQuotes));
+        if (additionalFilters != null) {
+            transforms.addAll(additionalFilters);
+        }
+        return StringGroovyMethods.collectReplacements(value, transforms);
     }
 
-    private static class ReplacingClosure extends Closure<String> {
+    public static class DefaultXmlEscapingFunction implements Function<Character, Optional<String>> {
         private final boolean isAttrValue;
-        private final boolean useDoubleQuotes;
 
-        public ReplacingClosure(boolean isAttrValue, boolean useDoubleQuotes) {
-            super(null);
+        private final Function<Character, Optional<String>> stdFilter = new StandardXmlFilter();
+        private final Function<Character, Optional<String>> attrFilter = new StandardXmlAttributeFilter();
+        private final Function<Character, Optional<String>> quoteFilter;
+
+        public DefaultXmlEscapingFunction(boolean isAttrValue, boolean useDoubleQuotes) {
             this.isAttrValue = isAttrValue;
-            this.useDoubleQuotes = useDoubleQuotes;
+            this.quoteFilter = useDoubleQuotes ? new DoubleQuoteFilter() : new SingleQuoteFilter();
         }
 
-        public String doCall(Character ch) {
-            switch (ch) {
-                case '&':
-                    return "&amp;";
-                case '<':
-                    return "&lt;";
-                case '>':
-                    return "&gt;";
-                case '\n':
-                    if (isAttrValue) return "&#10;";
-                    break;
-                case '\r':
-                    if (isAttrValue) return "&#13;";
-                    break;
-                case '\t':
-                    if (isAttrValue) return "&#09;";
-                    break;
-                case '"':
-                    // The double quote is only escaped if the value is for
-                    // an attribute and the builder is configured to output
-                    // attribute values inside double quotes.
-                    if (isAttrValue && useDoubleQuotes) return "&quot;";
-                    break;
-                case '\'':
-                    // The apostrophe is only escaped if the value is for an
-                    // attribute, as opposed to element content, and if the
-                    // builder is configured to surround attribute values with
-                    // single quotes.
-                    if (isAttrValue && !useDoubleQuotes) return "&apos;";
-                    break;
-            }
-            return null;
+        @Override
+        public Optional<String> apply(Character ch) {
+            return orOptional(stdFilter.apply(ch),
+                    () -> {
+                        if (isAttrValue) {
+                            return orOptional(attrFilter.apply(ch), () -> quoteFilter.apply(ch));
+                        }
+                        return Optional.empty();
+                    }
+            );
         }
     }
 

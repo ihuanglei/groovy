@@ -18,8 +18,8 @@
  */
 package typing
 
-import groovy.$Temp
 import groovy.test.GroovyAssert
+import groovy.test.GroovyTestCase
 import groovy.transform.TypeChecked
 import groovy.xml.MarkupBuilder
 import org.codehaus.groovy.control.CompilerConfiguration
@@ -420,7 +420,7 @@ runner.run()
 // tag::robot_runtime_error_cs[]
 java.lang.NoSuchMethodError: java.lang.Object.move()Ltyping/Robot;
 // end::robot_runtime_error_cs[]
-'''))
+''')) || err.contains('java.lang.NoSuchMethodError: \'typing.Robot java.lang.Object.move()\'')
     }
 
     void testRobotExamplePassesWithCompileStatic() {

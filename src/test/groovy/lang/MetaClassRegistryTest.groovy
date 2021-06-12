@@ -18,6 +18,8 @@
  */
 package groovy.lang
 
+import groovy.test.GroovyTestCase
+
 /**
  * GROOVY-2875: MetaClassRegistryImpl constantMetaClasses map is leaking resources
  * GROOVY-4481: the listener and iterator mechanism over the MetaClassRegistry wasn't working.
@@ -28,7 +30,7 @@ class MetaClassRegistryTest extends GroovyTestCase {
     static initSize
     static {
         try {
-            Class.forName("org.codehaus.groovy.vmplugin.v7.IndyInterface", true, MetaClassRegistryTest.classLoader)
+            Class.forName("org.codehaus.groovy.vmplugin.v8.IndyInterface", true, MetaClassRegistryTest.classLoader)
         } catch (e) {
         }
         initSize = GroovySystem.metaClassRegistry.metaClassRegistryChangeEventListeners.size()

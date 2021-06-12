@@ -20,7 +20,6 @@ package org.codehaus.groovy.ast;
 
 import org.codehaus.groovy.ast.expr.Expression;
 
-
 /**
  * Represents a parameter on a constructor or method call. The type name is
  * optional - it defaults to java.lang.Object if unknown.
@@ -31,13 +30,13 @@ public class Parameter extends AnnotatedNode implements Variable {
 
     private ClassNode type;
     private final String name;
+    private ClassNode originType;
     private boolean dynamicTyped;
+    private boolean closureShare;
     private Expression defaultValue;
     private boolean hasDefaultValue;
     private boolean inStaticContext;
-    private boolean closureShare=false;
     private int modifiers;
-    private ClassNode originType=ClassHelper.DYNAMIC_TYPE;
 
     public Parameter(ClassNode type, String name) {
         this.name = name;
@@ -45,75 +44,86 @@ public class Parameter extends AnnotatedNode implements Variable {
         this.originType = type;
         this.hasDefaultValue = false;
     }
-    
+
     public Parameter(ClassNode type, String name, Expression defaultValue) {
         this(type,name);
         this.defaultValue = defaultValue;
         this.hasDefaultValue = defaultValue != null;
     }
 
+    @Override
     public String toString() {
         return super.toString() + "[name:" + name + ((type == null) ? "" : " type: " + type.getName()) + ", hasDefaultValue: " + this.hasInitialExpression() + "]";
     }
 
+    @Override
     public String getName() {
         return name;
     }
 
+    @Override
     public ClassNode getType() {
         return type;
     }
 
     public void setType(ClassNode type) {
         this.type = type;
-        dynamicTyped |= type==ClassHelper.DYNAMIC_TYPE;
+        dynamicTyped = dynamicTyped || ClassHelper.isDynamicTyped(type);
     }
-    
+
+    @Override
     public boolean hasInitialExpression() {
         return this.hasDefaultValue;
     }
-    
+
     /**
      * @return the default value expression for this parameter or null if
      * no default value is specified
      */
+    @Override
     public Expression getInitialExpression() {
         return defaultValue;
     }
-    
+
     public void setInitialExpression(Expression init) {
         defaultValue = init;
         hasDefaultValue = defaultValue != null;
     }
-    
+
+    @Override
     public boolean isInStaticContext() {
         return inStaticContext;
     }
-    
+
     public void setInStaticContext(boolean inStaticContext) {
         this.inStaticContext = inStaticContext;
     }
 
+    @Override
     public boolean isDynamicTyped() {
         return dynamicTyped;
     }
 
+    @Override
     public boolean isClosureSharedVariable() {
         return closureShare;
     }
 
+    @Override
     public void setClosureSharedVariable(boolean inClosure) {
-        closureShare = inClosure;        
+        closureShare = inClosure;
     }
 
+    @Override
     public int getModifiers() {
         return modifiers;
     }
 
+    @Override
     public ClassNode getOriginType() {
         return originType;
     }
-    
+
     public void setOriginType(ClassNode cn) {
         originType = cn;
     }

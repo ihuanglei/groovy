@@ -16,14 +16,19 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-dependencies {
-    compile rootProject
-    testCompile project(':groovy-test')
-    testCompile project(':groovy-dateutil')
+plugins {
+    id 'org.apache.groovy-library'
 }
 
-task moduleDescriptor(type: org.codehaus.groovy.gradle.WriteExtensionDescriptorTask) {
-    extensionClasses = 'org.apache.groovy.datetime.extensions.DateTimeExtensions'
-    staticExtensionClasses = 'org.apache.groovy.datetime.extensions.DateTimeStaticExtensions'
+dependencies {
+    api rootProject // DateTimeExtensions has methods with Closure params...
+    testImplementation project(':groovy-test')
+    testImplementation project(':groovy-dateutil')
 }
-compileJava.dependsOn moduleDescriptor
+
+groovyLibrary {
+    moduleDescriptor {
+        extensionClasses = 'org.apache.groovy.datetime.extensions.DateTimeExtensions'
+        staticExtensionClasses = 'org.apache.groovy.datetime.extensions.DateTimeStaticExtensions'
+    }
+}

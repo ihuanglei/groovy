@@ -334,6 +334,7 @@ class SwingBuilder extends FactoryBuilderSupport {
                     continuationData = getContinuationData()
                 }
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new GroovyRuntimeException("interrupted swing interaction", e)
             } catch (InvocationTargetException e) {
                 throw new GroovyRuntimeException("exception in event dispatch thread", e.getTargetException())
@@ -521,7 +522,7 @@ class SwingBuilder extends FactoryBuilderSupport {
         def condition = attributes.remove("condition") ?: JComponent.WHEN_FOCUSED
         if (condition instanceof GString) condition = condition as String
         if( condition instanceof String ) {
-            condition = condition.toUpperCase().replaceAll(" ","_")
+            condition = condition.toUpperCase().replace(" ", "_")
             if( !condition.startsWith("WHEN_") ) condition = "WHEN_"+condition
         }
         switch(condition) {

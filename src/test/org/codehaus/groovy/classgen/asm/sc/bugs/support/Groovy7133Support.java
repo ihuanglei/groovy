@@ -18,11 +18,11 @@
  */
 package org.codehaus.groovy.classgen.asm.sc.bugs.support;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class Groovy7133Support {
     public static List<int[]> list() {
-        return Arrays.asList(new int[1]);
+        return Collections.singletonList(new int[1]);
     }
 }

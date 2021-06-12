@@ -18,23 +18,25 @@
  */
 package gls.innerClass
 
+import groovy.test.GroovyTestCase
+
 /**
  * Tests on inner interface usage
  */
 class InnerInterfaceTest extends GroovyTestCase {
 
     void testStaticInnerInterfaceInAClass() {
-        assertScript """
-            public class Foo4422V1 {
-                static public class Bar {
+        assertScript '''
+            class Foo4422V1 {
+                static class Bar {
                     def bar(){}
                 }
-                static public interface Baz {
+                static interface Baz {
                     String TEST = ""
                     def baz()
                 }
             }
-            
+
             class BazImpl implements Foo4422V1.Baz {
                 def baz(){}
             }
@@ -44,29 +46,29 @@ class InnerInterfaceTest extends GroovyTestCase {
             assert Foo4422V1.Baz.getMethod('baz') != null
             assert Foo4422V1.Baz.getField('TEST') != null
             assert BazImpl != null
-        """
+        '''
     }
 
     void testStaticInnerInterfaceInAnInterface() {
-        assertScript """
-            public interface Foo4422V2 {
-                static public interface Baz {}
+        assertScript '''
+            interface Foo4422V2 {
+                static interface Baz {}
             }
-            
+
             assert Foo4422V2.Baz != null
-        """
+        '''
     }
-    
+
     void testNonStaticInnerInterfaceInAClass() {
-        assertScript """
-            public class Foo4422V3 {
-                public class Bar {}
-                public interface Baz {}
+        assertScript '''
+            class Foo4422V3 {
+                class Bar {}
+                interface Baz {}
             }
-            
+
             assert Foo4422V3.Bar != null
             assert Foo4422V3.Baz != null
-        """
+        '''
     }
 
     // GROOVY-5989
@@ -81,23 +83,6 @@ class InnerInterfaceTest extends GroovyTestCase {
                     assert m.firstEntry().toString() == 'a=42'
                 }
             }
-        '''
-    }
-
-    // GROOVY-5754
-    void testResolveInnerInterface() {
-        assertScript '''
-            class Usage implements Koo {
-              static class MyInner extends Inner {}
-            }
-
-            public interface Koo {
-
-                class Inner {
-                }
-
-            }
-            Koo.Inner
         '''
     }
 }

@@ -19,14 +19,21 @@
 package org.codehaus.groovy.ast;
 
 import org.codehaus.groovy.ast.expr.Expression;
-import org.objectweb.asm.Opcodes;
 
 import java.lang.reflect.Field;
+
+import static org.objectweb.asm.Opcodes.ACC_ENUM;
+import static org.objectweb.asm.Opcodes.ACC_FINAL;
+import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
+import static org.objectweb.asm.Opcodes.ACC_PROTECTED;
+import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
+import static org.objectweb.asm.Opcodes.ACC_STATIC;
+import static org.objectweb.asm.Opcodes.ACC_VOLATILE;
 
 /**
  * Represents a field (member variable)
  */
-public class FieldNode extends AnnotatedNode implements Opcodes, Variable {
+public class FieldNode extends AnnotatedNode implements Variable {
 
     private String name;
     private int modifiers;
@@ -43,6 +50,8 @@ public class FieldNode extends AnnotatedNode implements Opcodes, Variable {
         return new FieldNode(name, ACC_PUBLIC | ACC_STATIC, fldType, ClassHelper.make(theClass), null);
     }
 
+    protected FieldNode() {}
+
     public FieldNode(String name, int modifiers, ClassNode type, ClassNode owner, Expression initialValueExpression) {
         this.name = name;
         this.modifiers = modifiers;
@@ -51,18 +60,22 @@ public class FieldNode extends AnnotatedNode implements Opcodes, Variable {
         this.initialValueExpression = initialValueExpression;
     }
 
+    @Override
     public Expression getInitialExpression() {
         return initialValueExpression;
     }
 
+    @Override
     public int getModifiers() {
         return modifiers;
     }
 
+    @Override
     public String getName() {
         return name;
     }
 
+    @Override
     public ClassNode getType() {
         return type;
     }
@@ -70,7 +83,7 @@ public class FieldNode extends AnnotatedNode implements Opcodes, Variable {
     public void setType(ClassNode type) {
         this.type = type;
         this.originType = type;
-        dynamicTyped |= type == ClassHelper.DYNAMIC_TYPE;
+        dynamicTyped |= ClassHelper.isDynamicTyped(type);
     }
 
     public ClassNode getOwner() {
@@ -85,6 +98,7 @@ public class FieldNode extends AnnotatedNode implements Opcodes, Variable {
         this.holder = holder;
     }
 
+    @Override
     public boolean isDynamicTyped() {
         return dynamicTyped;
     }
@@ -150,10 +164,12 @@ public class FieldNode extends AnnotatedNode implements Opcodes, Variable {
         this.owner = owner;
     }
 
+    @Override
     public boolean hasInitialExpression() {
         return initialValueExpression != null;
     }
 
+    @Override
     public boolean isInStaticContext() {
         return isStatic();
     }
@@ -169,7 +185,7 @@ public class FieldNode extends AnnotatedNode implements Opcodes, Variable {
     /**
      * @deprecated
      */
-    @Deprecated
+    @Deprecated @Override
     public boolean isClosureSharedVariable() {
         return false;
     }
@@ -177,10 +193,11 @@ public class FieldNode extends AnnotatedNode implements Opcodes, Variable {
     /**
      * @deprecated
      */
-    @Deprecated
+    @Deprecated @Override
     public void setClosureSharedVariable(boolean inClosure) {
     }
 
+    @Override
     public ClassNode getOriginType() {
         return originType;
     }
@@ -190,7 +207,7 @@ public class FieldNode extends AnnotatedNode implements Opcodes, Variable {
     }
 
     public void rename(String name) {
-        declaringClass.renameField(this.name, name);
+        getDeclaringClass().renameField(this.name, name);
         this.name = name;
     }
 }

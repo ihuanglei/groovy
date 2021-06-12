@@ -24,9 +24,7 @@ import org.apache.groovy.io.StringBuilderWriter;
 import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.io.Writer;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -91,6 +89,7 @@ public class EncodingGroovyMethods {
 
     private static Writable encodeBase64(final byte[] data, final boolean chunked, final boolean urlSafe, final boolean pad) {
         return new Writable() {
+            @Override
             public Writer writeTo(final Writer writer) throws IOException {
                 int charCount = 0;
                 final int dLimit = (data.length / 3) * 3;
@@ -134,6 +133,7 @@ public class EncodingGroovyMethods {
                 return writer;
             }
 
+            @Override
             public String toString() {
                 Writer buffer = new StringBuilderWriter();
 
@@ -286,11 +286,7 @@ public class EncodingGroovyMethods {
             if (byteShift == 0) byteShift = 4;
         }
 
-        try {
-            return buffer.toString().getBytes("ISO-8859-1");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("Base 64 decode produced byte values > 255"); // TODO: change this exception type
-        }
+        return buffer.toString().getBytes(StandardCharsets.ISO_8859_1);
     }
 
     /**
@@ -317,10 +313,11 @@ public class EncodingGroovyMethods {
      */
     public static Writable encodeHex(final byte[] data) {
         return new Writable() {
+            @Override
             public Writer writeTo(Writer out) throws IOException {
-                for (int i = 0; i < data.length; i++) {
+                for (byte datum : data) {
                     // convert byte into unsigned hex string
-                    String hexString = Integer.toHexString(data[i] & 0xFF);
+                    String hexString = Integer.toHexString(datum & 0xFF);
 
                     // add leading zero if the length of the string is one
                     if (hexString.length() < 2) {
@@ -333,6 +330,7 @@ public class EncodingGroovyMethods {
                 return out;
             }
 
+            @Override
             public String toString() {
                 Writer buffer = new StringBuilderWriter();
 
@@ -436,6 +434,6 @@ public class EncodingGroovyMethods {
         MessageDigest md = MessageDigest.getInstance(algorithm);
         md.update(ByteBuffer.wrap(self));
 
-        return String.format("%032x", new BigInteger(1, md.digest()));
+        return encodeHex(md.digest()).toString();
     }
 }

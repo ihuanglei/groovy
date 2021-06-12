@@ -28,9 +28,8 @@ import java.io.Writer;
 /**
  * An abstract base class for nodes in the concrete syntax tree that is
  * the result of parsing.  Note that the CSTNode is inextricably linked
- * with the Token in that every CSTNode has a Token as it's root.
+ * with the Token in that every CSTNode has a Token as its root.
  *
- * @see antlr.Parser
  * @see Token
  * @see org.codehaus.groovy.syntax.Reduction
  * @see org.codehaus.groovy.syntax.Types
@@ -50,7 +49,7 @@ public abstract class CSTNode {
     }
 
     /**
-     * Sets the meaning for this node (and it's root Token).  Not
+     * Sets the meaning for this node (and its root Token).  Not
      * valid if the node isEmpty().  Returns the node, for convenience.
      */
     public CSTNode setMeaning(int meaning) {
@@ -85,8 +84,8 @@ public abstract class CSTNode {
      */
     public boolean isOneOf(int[] types) {
         int meaning = getMeaning();
-        for (int i = 0; i < types.length; i++) {
-            if (Types.ofType(meaning, types[i])) {
+        for (int type : types) {
+            if (Types.ofType(meaning, type)) {
                 return true;
             }
         }
@@ -99,8 +98,8 @@ public abstract class CSTNode {
      */
     public boolean isAllOf(int[] types) {
         int meaning = getMeaning();
-        for (int i = 0; i < types.length; i++) {
-            if (!Types.ofType(meaning, types[i])) {
+        for (int type : types) {
+            if (!Types.ofType(meaning, type)) {
                 return false;
             }
         }
@@ -114,9 +113,9 @@ public abstract class CSTNode {
      */
     public int getMeaningAs(int[] types) {
 
-        for (int i = 0; i < types.length; i++) {
-            if (isA(types[i])) {
-                return types[i];
+        for (int type : types) {
+            if (isA(type)) {
+                return type;
             }
         }
 
@@ -135,7 +134,7 @@ public abstract class CSTNode {
     }
 
     /**
-     * Returns true if the node and it's first child match the specified
+     * Returns true if the node and its first child match the specified
      * types.  Missing nodes are Token.NULL.
      */
     boolean matches(int type, int child1) {
@@ -143,7 +142,7 @@ public abstract class CSTNode {
     }
 
     /**
-     * Returns true if the node and it's first and second child match the
+     * Returns true if the node and its first and second child match the
      * specified types.  Missing nodes are Token.NULL.
      */
     boolean matches(int type, int child1, int child2) {
@@ -151,7 +150,7 @@ public abstract class CSTNode {
     }
 
     /**
-     * Returns true if the node and it's first three children match the
+     * Returns true if the node and its first three children match the
      * specified types.  Missing nodes are Token.NULL.
      */
     boolean matches(int type, int child1, int child2, int child3) {
@@ -159,7 +158,7 @@ public abstract class CSTNode {
     }
 
     /**
-     * Returns true if the node an it's first four children match the
+     * Returns true if the node an its first four children match the
      * specified types.  Missing nodes have type Types.NULL.
      */
     boolean matches(int type, int child1, int child2, int child3, int child4) {
@@ -226,7 +225,7 @@ public abstract class CSTNode {
     public abstract Token getRoot();
 
     /**
-     * Returns the root of the node, the Token that indicates it's
+     * Returns the root of the node, the Token that indicates its
      * type.  Returns a Token.NULL if safe and the actual root is null.
      */
     public Token getRoot(boolean safe) {
@@ -327,6 +326,7 @@ public abstract class CSTNode {
     /**
      * Formats the node as a <code>String</code> and returns it.
      */
+    @Override
     public String toString() {
         Writer string = new StringBuilderWriter();
         write(new PrintWriter(string));

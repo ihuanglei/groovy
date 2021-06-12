@@ -18,10 +18,15 @@
  */
 package groovy.execute
 
+import groovy.test.GroovyTestCase
+
+import static groovy.test.GroovyAssert.isAtLeastJdk
+
 /**
  *  Cross platform tests for the DGM#execute() family of methods.
  */
-class ExecuteTest extends GroovyTestCase {
+final class ExecuteTest extends GroovyTestCase {
+
     private String getCmd() {
         def cmd = "ls -l"
         if (System.properties.'os.name'.startsWith('Windows ')) {
@@ -72,10 +77,7 @@ class ExecuteTest extends GroovyTestCase {
                 "groovy.ui.GroovyMain",
                 "-e",
                 "sleep(2000); println('Done'); System.exit(0)"]
-        if (System.getProperty('java.specification.version') >= '9') {
-            javaArgs.add(3, '--add-modules')
-            javaArgs.add(4, 'java.xml.bind')
-        }
+
         String[] java = javaArgs.toArray()
         println "Executing this command for two cases:\n${java.join(' ')}"
         StringBuffer sbout = new StringBuffer()
@@ -118,27 +120,44 @@ class ExecuteTest extends GroovyTestCase {
     }
 
     void testExecuteCommandLineWithEnvironmentProperties() {
-        List<String> javaArgs = [System.getProperty('java.home') + "/bin/java",
-                "-classpath",
+        List<String> java = [
+                System.getProperty('java.home') + '/bin/java',
+                '-classpath',
                 System.getProperty('java.class.path'),
-                "groovy.ui.GroovyMain",
-                "-e",
-                "println(System.getenv('foo'))"]
-        if (System.getProperty('java.specification.version') >= '9') {
-            javaArgs.add(3, '--add-modules')
-            javaArgs.add(4, 'java.xml.bind')
-        }
-        String[] java = javaArgs.toArray()
+                'groovy.ui.GroovyMain',
+                '-e',
+                "println(System.getenv('foo'))"
+        ]
+
         println "Executing this command:\n${java.join(' ')}"
-        def props = ["foo=bar"]
-        StringBuffer sbout = new StringBuffer()
-        StringBuffer sberr = new StringBuffer()
-        def process = java.execute(props, null)
-        process.waitForProcessOutput sbout, sberr
-        def value = process.exitValue()
-        int count = sbout.toString().readLines().size()
-        assert sbout.toString().contains('bar')
-        assert value == 0
+        def process = java.execute(['foo=bar'], null)
+        def out = new StringBuffer()
+        def err = new StringBuffer()
+        process.waitForProcessOutput(out, err)
+
+        assert out.toString().contains('bar')
+        assert process.exitValue() == 0
     }
 
+    // GROOVY-9392
+    void testExecuteCommandLineProcessWithGroovySystemClassLoader() {
+        List<String> java = [
+                System.getProperty('java.home') + '/bin/java',
+                '-classpath',
+                System.getProperty('java.class.path'),
+                '-Djava.system.class.loader=groovy.lang.GroovyClassLoader',
+                'groovy.ui.GroovyMain',
+                '-e',
+                "println('hello')"
+        ]
+
+        println "Executing this command:\n${java.join(' ')}"
+        def process = java.execute()
+        def out = new StringBuffer()
+        def err = new StringBuffer()
+        process.waitForProcessOutput(out, err)
+
+        assert out.toString().startsWith('hello')
+        assert process.exitValue() == 0
+    }
 }

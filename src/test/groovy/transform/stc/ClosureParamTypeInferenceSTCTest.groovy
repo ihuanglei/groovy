@@ -275,7 +275,7 @@ import groovy.transform.stc.ClosureParams
 
 void foo(@ClosureParams(value=FromString,options="java.util.List<java.lang.String>") Closure cl) { cl.call(['foo']) }
 foo { List<Date> d -> d.each { println it } }
-''', 'Expected parameter of type java.util.List <java.lang.String> but got java.util.List <Date>'
+''', 'Expected parameter of type java.util.List<java.lang.String> but got java.util.List<java.util.Date>'
     }
 
     void testFromStringWithDirectGenericPlaceholder() {
@@ -428,6 +428,12 @@ import groovy.transform.stc.ClosureParams
 ''', 'Expected parameter of type java.lang.String but got java.util.Date'
     }
 
+    void testStringGroovyMethodsFindMethodWithList() {
+        assertScript '''
+            "75001 Paris".find(/(\\d{5}\\s(\\w+))/) { List<String> all -> println all*.toUpperCase() }
+'''
+    }
+
     void testInferenceForDGM_countIterableOrIterator() {
         assertScript '''
             assert ['Groovy','Java'].count { it.length() > 4 } == 1
@@ -539,7 +545,7 @@ import groovy.transform.stc.ClosureParams
             assert sum == 110
         '''
     }
-    
+
     void testInferenceForDGM_upto() {
         assertScript '''
             BigDecimal sum = 0
@@ -1318,5 +1324,177 @@ def method() {
 
 method()
 '''
+    }
+
+    void testGroovy9058() {
+        assertScript '''
+            List<Object[]> bar() { [['fee', 'fi'] as Object[], ['fo', 'fum'] as Object[]] }
+
+            def foo() {
+                def result = []
+                List<Object[]> bar = bar()
+                bar.each { row -> result << row[0].toString().toUpperCase() }
+                result
+            }
+
+            assert foo() == ['FEE', 'FO']
+        '''
+    }
+
+    void testGroovy9518() {
+        assertScript '''
+            class C {
+                C(String s, Comparable<List<Integer>> c) {
+                }
+            }
+
+            new C('blah', { list -> list.get(0) })
+        '''
+    }
+
+    void testGroovy9518a() {
+        assertScript '''
+            class C {
+                C(String s, Comparable<List<Integer>> c) {
+                }
+            }
+
+            new C('blah', { it.get(0) })
+        '''
+    }
+
+    void testGroovy9518b() {
+        assertScript '''
+            import groovy.transform.stc.*
+
+            class C {
+                C(String s, @ClosureParams(value=SimpleType, options='java.util.List') Closure<Integer> c) {
+                }
+            }
+
+            new C('blah', { list -> list.get(0) })
+        '''
+    }
+
+    void testGroovy9570() {
+        assertScript '''
+            class C<I extends Item> {
+                Queue<I> queue
+
+                def c = { ->
+                    queue.each { I item ->
+                        println item
+                    }
+                }
+
+                def m() {
+                    queue.each { I item ->
+                        println item
+                    }
+                }
+            }
+
+            interface Item {}
+
+            new C()
+        '''
+    }
+
+    void testGroovy9735() {
+        assertScript '''
+            import groovy.transform.stc.*
+
+            class C<I extends Item> {
+                Queue<I> queue
+
+                def c = { ->
+                    x(queue) { I item ->
+                        println item
+                    }
+                }
+
+                def m() {
+                    x(queue) { I item ->
+                        println item
+                    }
+                }
+
+                def <T> T x(Collection<T> y, @ClosureParams(FirstParam.FirstGenericType) Closure z) {
+                }
+            }
+
+            interface Item {}
+
+            new C()
+        '''
+    }
+
+    void testGroovy9597a() {
+        assertScript '''
+            import groovy.transform.stc.*
+
+            class A {
+                def <T> void proc(Collection<T> values, @ClosureParams(FirstParam.FirstGenericType) Closure<String> block) {
+                }
+            }
+
+            class B {
+                List<Integer> list
+                void test(A a) {
+                    a.proc(this.list) { it.toBigDecimal().toString() } // works
+                    a.with {
+                      proc(this.list) { it.toBigDecimal().toString() } // error
+                    }
+                }
+            }
+
+            new B().test(new A())
+        '''
+    }
+
+    void testGroovy9597b() {
+        assertScript '''
+            import groovy.transform.stc.*
+
+            class A {
+                static A of(@DelegatesTo(A) Closure x) {
+                    new A().tap {
+                        x.delegate = it
+                        x.call()
+                    }
+                }
+                def <T> void proc(Collection<T> values, @ClosureParams(FirstParam.FirstGenericType) Closure<String> block) {
+                }
+            }
+
+            class B {
+              List<Integer> list
+              A a = A.of {
+                  proc(
+                      this.list,
+                      { it.toBigDecimal().toString() } // Cannot find matching method java.lang.Object#toBigDecimal()
+                  )
+              }
+            }
+
+            new B()
+        '''
+    }
+
+    void testGroovy9968() {
+        assertScript '''
+            import groovy.transform.*
+            @Canonical class Pogo { String prop }
+            @Canonical class Type<T extends Pogo> implements Iterable<T> {
+                Iterator<T> iterator() {
+                    list.iterator()
+                }
+                List<T> list
+            }
+
+            def iterable = new Type([new Pogo('x'), new Pogo('y'), new Pogo('z')])
+            assert iterable.collect { Pogo p -> p.prop } == ['x', 'y', 'z']
+            assert iterable.collect { it.prop } == ['x', 'y', 'z']
+        '''
     }
 }

@@ -137,6 +137,19 @@ class OperatorsTest extends CompilableTestSupport {
         // end::bitwise_op[]
     }
 
+    void testBitShiftOperators() {
+        // tag::bit_shift_op[]
+        assert 12.equals(3 << 2)           // <1>
+        assert 24L.equals(3L << 3)         // <1>
+        assert 48G.equals(3G << 4)         // <1>
+
+        assert 4095 == -200 >>> 20
+        assert -1 == -200 >> 20
+        assert 2G == 5G >> 1
+        assert -3G == -5G >> 1
+        // end::bit_shift_op[]
+    }
+
     void testLogicalOperatorPrecedence() {
         // tag::logical_precendence_1[]
         assert (!false && false) == false   // <1>
@@ -237,13 +250,13 @@ assert user.@name == 'Bob'                   // <1>
 '''
     }
 
-    void testMethodReference() {
-        // tag::method_reference[]
+    void testMethodPointer() {
+        // tag::method_pointer[]
         def str = 'example of method reference'            // <1>
         def fun = str.&toUpperCase                         // <2>
         def upper = fun()                                  // <3>
         assert upper == str.toUpperCase()                  // <4>
-        // end::method_reference[]
+        // end::method_pointer[]
         assert fun instanceof Closure
 
         assertScript '''
@@ -251,7 +264,7 @@ assert user.@name == 'Bob'                   // <1>
                 String name
                 int age
             }
-            // tag::method_reference_strategy[]
+            // tag::method_pointer_strategy[]
             def transform(List elements, Closure action) {                    // <1>
                 def result = []
                 elements.each {
@@ -268,17 +281,66 @@ assert user.@name == 'Bob'                   // <1>
                 new Person(name: 'Julia', age: 35)]                           // <4>
             assert transform(list, action) == ['Bob is 42', 'Julia is 35']    // <5>
 
-            // end::method_reference_strategy[]
+            // end::method_pointer_strategy[]
         '''
 
         assertScript '''
-            // tag::method_reference_dispatch[]
+            // tag::method_pointer_dispatch[]
             def doSomething(String str) { str.toUpperCase() }    // <1>
             def doSomething(Integer x) { 2*x }                   // <2>
             def reference = this.&doSomething                    // <3>
             assert reference('foo') == 'FOO'                     // <4>
             assert reference(123)   == 246                       // <5>
-            // end::method_reference_dispatch[]
+            // end::method_pointer_dispatch[]
+        '''
+
+        assertScript '''
+            // tag::method_pointer_new[]
+            def foo  = BigInteger.&new
+            def fortyTwo = foo('42')
+            assert fortyTwo == 42G
+            // end::method_pointer_new[]
+        '''
+
+        assertScript '''
+            // tag::method_pointer_class_instance[]
+            def instanceMethod = String.&toUpperCase
+            assert instanceMethod('foo') == 'FOO'
+            // end::method_pointer_class_instance[]
+        '''
+    }
+
+    void testMethodReference() {
+        assertScript '''
+            // tag::method_refs[]
+            import groovy.transform.CompileStatic
+            import static java.util.stream.Collectors.toList
+
+            @CompileStatic
+            void methodRefs() {
+                assert 6G == [1G, 2G, 3G].stream().reduce(0G, BigInteger::add)                           // <1>
+
+                assert [4G, 5G, 6G] == [1G, 2G, 3G].stream().map(3G::add).collect(toList())              // <2>
+
+                assert [1G, 2G, 3G] == [1L, 2L, 3L].stream().map(BigInteger::valueOf).collect(toList())  // <3>
+
+                assert [1G, 2G, 3G] == [1L, 2L, 3L].stream().map(3G::valueOf).collect(toList())          // <4>
+            }
+
+            methodRefs()
+            // end::method_refs[]
+            // tag::constructor_refs[]
+            @CompileStatic
+            void constructorRefs() {
+                assert [1, 2, 3] == ['1', '2', '3'].stream().map(Integer::new).collect(toList())  // <1>
+
+                def result = [1, 2, 3].stream().toArray(Integer[]::new)                           // <2>
+                assert result instanceof Integer[]
+                assert result.toString() == '[1, 2, 3]'
+            }
+
+            constructorRefs()
+            // end::constructor_refs[]
         '''
     }
 
@@ -311,6 +373,27 @@ assert user.@name == 'Bob'                   // <1>
             throw new RuntimeException("Should not reach that point!")
         }
         // end::pattern_matcher_strict_op[]
+
+        // tag::pattern_find_vs_matcher[]
+        assert 'two words' ==~ /\S+\s+\S+/
+        assert 'two words' ==~ /^\S+\s+\S+$/         // <1>
+        assert !(' leading space' ==~ /\S+\s+\S+/)   // <2>
+
+        def m1 = 'two words' =~ /^\S+\s+\S+$/
+        assert m1.size() == 1                          // <3>
+        def m2 = 'now three words' =~ /^\S+\s+\S+$/    // <4>
+        assert m2.size() == 0                          // <5>
+        def m3 = 'now three words' =~ /\S+\s+\S+/
+        assert m3.size() == 1                          // <6>
+        assert m3[0] == 'now three'
+        def m4 = ' leading space' =~ /\S+\s+\S+/
+        assert m4.size() == 1                          // <7>
+        assert m4[0] == 'leading space'
+        def m5 = 'and with four words' =~ /\S+\s+\S+/
+        assert m5.size() == 2                          // <8>
+        assert m5[0] == 'and with'
+        assert m5[1] == 'four words'
+        // end::pattern_find_vs_matcher[]
     }
 
     void testSpreadDotOperator() {
@@ -460,8 +543,10 @@ assert function(*args,5,6) == 26
         def range = 0..5                                    // <1>
         assert (0..5).collect() == [0, 1, 2, 3, 4, 5]       // <2>
         assert (0..<5).collect() == [0, 1, 2, 3, 4]         // <3>
-        assert (0..5) instanceof List                       // <4>
-        assert (0..5).size() == 6                           // <5>
+        assert (0<..5).collect() == [1, 2, 3, 4, 5]         // <4>
+        assert (0<..<5).collect() == [1, 2, 3, 4]           // <5>
+        assert (0..5) instanceof List                       // <6>
+        assert (0..5).size() == 6                           // <7>
         // end::intrange[]
         '''
         assertScript '''
